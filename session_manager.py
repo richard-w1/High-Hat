@@ -167,6 +167,7 @@ class IncidentManager:
             incident.max_confidence = hand_confidence
         
         # Convert frame image to base64 (optional, can be heavy)
+        # Only encode if frame_image is provided (we skip every 4th frame to reduce lag)
         image_data_b64 = None
         if frame_image is not None:
             _, buffer = cv2.imencode('.jpg', frame_image, [cv2.IMWRITE_JPEG_QUALITY, 85])
@@ -190,7 +191,8 @@ class IncidentManager:
         db.session.add(frame)
         db.session.commit()
         
-        print(f"   📸 Frame #{frame_number} added to Incident #{incident_id} (global frame #{global_frame_num})")
+        saved_status = "with image" if image_data_b64 else "metadata only"
+        print(f"   📸 Frame #{frame_number} added to Incident #{incident_id} (global #{global_frame_num}, {saved_status})")
         
         # Check if we should escalate
         if not incident.is_escalated and incident.total_frames >= incident.escalation_threshold:
@@ -247,9 +249,17 @@ class GeminiAnalysisManager:
         incident = Incident.query.get(incident_id)
         if incident:
             incident.gemini_analyzed = True
-            incident.threat_detected = threat_detected
-            incident.threat_confidence = confidence
-            incident.threat_explanation = explanation
+            
+            # Only update threat status if a threat is detected
+            # Once a threat is detected, keep it marked as threat
+            if threat_detected:
+                incident.threat_detected = True
+                incident.threat_confidence = confidence
+                incident.threat_explanation = explanation
+            # If no previous threat was detected, update confidence/explanation anyway
+            elif not incident.threat_detected:
+                incident.threat_confidence = confidence
+                incident.threat_explanation = explanation
         
         db.session.commit()
         

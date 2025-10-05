@@ -37,6 +37,9 @@ class Session(db.Model):
     incidents = db.relationship('Incident', backref='session', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self):
+        # Check if any incidents have threats detected
+        has_threat = any(incident.threat_detected for incident in self.incidents)
+        
         return {
             'id': self.id,
             'started_at': self.started_at.isoformat() if self.started_at else None,
@@ -45,6 +48,7 @@ class Session(db.Model):
             'total_frames': self.total_frames,
             'total_incidents': self.total_incidents,
             'total_escalations': self.total_escalations,
+            'has_threat': has_threat,  # True if any incident detected a threat
             'duration_seconds': (
                 (self.ended_at - self.started_at).total_seconds() 
                 if self.ended_at else 
@@ -146,7 +150,8 @@ class IncidentFrame(db.Model):
             'hands_detected': self.hands_detected,
             'hand_count': self.hand_count,
             'hand_confidence': self.hand_confidence,
-            'hand_data': json.loads(self.hand_data) if self.hand_data else []
+            'hand_data': json.loads(self.hand_data) if self.hand_data else [],
+            'frame_image': self.image_data  # Include base64 image data for display
         }
     
     def set_hand_data(self, hand_list):
