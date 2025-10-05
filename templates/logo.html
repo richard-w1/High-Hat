@@ -1,0 +1,25 @@
+<!-- templates/logo.html -->
+<div class="logo-wrap">
+  <svg class="logo-anim" viewBox="0 0 200 200" width="64" height="64" aria-label="High Hat logo">
+    <defs>
+      <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#22d3ee" />
+        <stop offset="100%" stop-color="#c084fc" />
+      </linearGradient>
+    </defs>
+    <path d="M20 130 Q100 155 180 130 Q170 115 150 110 Q100 120 50 110 Q30 115 20 130Z"
+          fill="none" stroke="url(#grad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M55 60 Q100 35 145 60 L145 105 Q145 110 140 112 Q100 122 60 112 Q55 110 55 105 Z"
+          fill="none" stroke="url(#grad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <g transform="translate(100 95)">
+      <path d="M0 -22 C14 -22 22 -12 22 2 C22 18 10 30 0 36 C-10 30 -22 18 -22 2 C-22 -12 -14 -22 0 -22 Z"
+            fill="rgba(255,255,255,0.1)" stroke="#22d3ee" stroke-width="3" />
+      <circle r="12" fill="none" stroke="#fff" stroke-width="3" />
+      <circle r="6" fill="#c084fc" />
+      <circle r="2" cx="-3" cy="-3" fill="white" opacity="0.8" />
+    </g>
+    <rect x="-60" y="0" width="60" height="200" rx="30"
+          fill="#fff" opacity="0.08" style="animation:sweep 4s ease-in-out infinite" />
+  </svg>
+  <div class="logo-text">HIGH HAT</div>
+</div>

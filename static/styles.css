@@ -807,3 +807,27 @@ div[style*="display: flex !important"][style*="flex-direction: row !important"] 
     padding: 0.5rem;
   }
 }
+
+.logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: white;
+}
+
+@keyframes sweep {
+  0% { transform: translateX(-60px); }
+  60% { transform: translateX(260px); }
+  100% { transform: translateX(260px); }
+}
+
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px rgba(34,211,238,0.4)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 16px rgba(192,132,252,0.6)); }
+}
+
+.logo-anim {
+  animation: logoPulse 5s ease-in-out infinite;
+}
