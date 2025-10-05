@@ -1,93 +1,135 @@
 {% extends 'layout.html' %}
 
-{% block title %}Overview{% endblock %}
+{% block title %}High Hat — AI Security Monitoring{% endblock %}
 
 {% block content %}
-<div class="card">
-  {% if current_session %}
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
-      <h2 style="margin: 0;">Current Session</h2>
-      <div class="status monitoring">Active</div>
-    </div>
-    
-    <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); margin-bottom: 1rem;">
-      <p style="color: var(--muted-foreground); margin-bottom: 0.5rem;"><strong>Session ID:</strong> S-{{ current_session.id }}</p>
-      <p style="margin: 0.5rem 0;"><strong>Description:</strong> {{ current_session.description or 'Monitoring backpack for potential theft incidents and unauthorized access.' }}</p>
-      <p style="color: var(--muted-foreground); margin-top: 1rem;"><strong>Started:</strong> {{ current_session.started_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
-    </div>
+<div style="padding-top: 1rem;">
+  <!-- Hero -->
+  <section class="card" style="overflow: hidden; position: relative;">
+    <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 2rem; align-items: center;">
+      <div>
+        <div style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: 999px; font-size: 0.75rem; color: var(--muted-foreground); margin-bottom: 1rem;">
+          <span class="material-icons" style="font-size: 1rem;"></span>
+          Real‑time AI theft detection
+        </div>
+        <h2 style="font-size: clamp(1.8rem, 2.8vw, 3rem); line-height: 1.15; margin: 0 0 0.75rem;">
+          Protect your backpack with computer vision and instant voice alerts
+        </h2>
+        <p style="color: var(--muted-foreground); font-size: 1rem; max-width: 60ch;">
+          High Hat watches your bag so you don’t have to. When Gemini sees suspicious motion, ElevenLabs delivers a clear, real‑time voice warning.
+        </p>
 
-    {% set imgs = current_session.images if current_session else [] %}
-    {% if imgs %}
-      <div class="images">
-        {% for img in imgs[:6] %}
-          <img src="/static/{{ img }}" alt="Session capture {{ loop.index }}" />
-        {% endfor %}
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap;">
+          <a href="/dashboard" class="btn" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <span class="material-icons" style="font-size: 1.1rem;">play_circle</span>
+            Open Live Dashboard
+          </a>
+          <a href="/threats" class="btn ghost" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <span class="material-icons" style="font-size: 1.1rem;">warning</span>
+            View Threats
+          </a>
+          <a href="/analysis" class="btn ghost" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <span class="material-icons" style="font-size: 1.1rem;">analytics</span>
+            System Analysis
+          </a>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1.25rem; color: var(--muted-foreground); font-size: 0.9rem; flex-wrap: wrap;">
+        </div>
       </div>
-    {% endif %}
 
-  {% else %}
-    <div style="text-align: center; padding: 3rem 1rem;">
-      <span class="material-icons" style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">lock</span>
-      <h2>No Active Session</h2>
-      <p style="color: var(--muted-foreground); margin: 1rem 0;">Your security monitoring system is currently inactive. Start a new session to begin monitoring.</p>
-      <a href="/dashboard" class="btn" style="margin-top: 1rem;">Go to Live Monitor</a>
+      <!-- Themed animated icon cloud -->
+      <div>
+        <div class="card" style="background: radial-gradient(1200px 400px at 100% -20%, rgba(168,85,247,0.08), transparent), radial-gradient(1000px 400px at -10% 120%, rgba(34,197,94,0.06), transparent);">
+          <h3 style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="material-icons"></span>
+            Intelligent Protection
+          </h3>
+          <div style="position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); height: 260px; background: linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.06));">
+            <span class="material-icons icon-float" style="left: 8%; top: 18%; color: var(--primary);">security</span>
+            <span class="material-icons icon-pulse" style="left: 64%; top: 14%; color: var(--success);">notifications_active</span>
+            <span class="material-icons icon-wiggle" style="left: 34%; top: 58%; color: var(--warning);">warning</span>
+            <span class="material-icons icon-rotate" style="left: 78%; top: 60%; color: var(--muted-foreground);">visibility</span>
+            <span class="material-icons icon-float-delayed" style="left: 20%; top: 70%; color: var(--primary);">backpack</span>
+            <span class="material-icons icon-pulse-delayed" style="left: 49%; top: 26%; color: #a78bfa;">psychology</span>
+            <span class="material-icons icon-wiggle-delayed" style="left: 6%; top: 62%; color: var(--muted-foreground);">analytics</span>
+            <span class="material-icons icon-rotate-delayed" style="left: 82%; top: 36%; color: var(--primary);">lock</span>
+          </div>
+        </div>
+      </div>
     </div>
-  {% endif %}
+  </section>
+
+  <!-- Features -->
+  <section style="margin-top: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+        <span class="material-icons" style="color: var(--primary);">bolt</span>
+        <h3 style="margin: 0;">Real‑time Detection</h3>
+      </div>
+      <p style="color: var(--muted-foreground);">MediaPipe tracks hands every few frames. Incidents escalate every 10 frames for Gemini analysis.</p>
+    </div>
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+        <span class="material-icons" style="color: var(--primary);">psychology</span>
+        <h3 style="margin: 0;">AI Confirmation</h3>
+      </div>
+      <p style="color: var(--muted-foreground);">Gemini validates suspicious motion and marks threats with an explanation, recorded to history.</p>
+    </div>
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+        <span class="material-icons" style="color: var(--primary);">record_voice_over</span>
+        <h3 style="margin: 0;">Instant Voice Alert</h3>
+      </div>
+      <p style="color: var(--muted-foreground);">ElevenLabs speaks a short, natural warning only in real time. No replays from history.</p>
+    </div>
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+        <span class="material-icons" style="color: var(--primary);">lock</span>
+        <h3 style="margin: 0;">Privacy‑first</h3>
+      </div>
+      <p style="color: var(--muted-foreground);">Designed for edge capture and minimal storage. You’re in control of retention and alerts.</p>
+    </div>
+  </section>
+
+  <!-- Secondary CTA -->
+  <section class="card" style="margin-top: 2rem; text-align: center;">
+    <h3 style="margin: 0 0 0.5rem;">Ready to monitor?</h3>
+    <p style="color: var(--muted-foreground); margin-bottom: 1rem;">Open the live dashboard and start monitoring in one click.</p>
+    <a href="/dashboard" class="btn" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+      <span class="material-icons" style="font-size: 1.1rem;">shield</span>
+      Launch Live Monitor
+    </a>
+  </section>
 </div>
 
-<div class="card">
-  <h3>Recent Sessions</h3>
-  {% if sessions %}
-    <table class="sessions-table">
-      <thead>
-        <tr>
-          <th>Session ID</th>
-          <th>Started</th>
-          <th>Images</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in sessions[:5] %}
-          <tr>
-            <td style="color: var(--primary); font-weight: 600;">S-{{ s.id }}</td>
-            <td>{{ s.started_at.strftime('%B %d, %Y at %I:%M %p') }}</td>
-            <td>{{ s.images|length }}</td>
-            <td>
-              <a class="btn tiny" href="{{ url_for('session_detail', session_id=s.id) }}">View Details</a>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <div style="text-align: center; margin-top: 1.5rem;">
-      <a class="btn" href="{{ url_for('sessions_all') }}">View All Sessions</a>
-    </div>
-  {% else %}
-    <div style="text-align: center; padding: 2rem; color: var(--muted-foreground);">
-      <span class="material-icons" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;">inventory_2</span>
-      <p>No previous sessions found</p>
-    </div>
-  {% endif %}
-</div>
+<style>
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(180%); } }
+  @keyframes floatY { 0% { transform: translateY(0px); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0px); } }
+  @keyframes pulseSoft { 0% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); opacity: 0.9; } }
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-6deg); }
+    75% { transform: rotate(6deg); }
+  }
+  @keyframes rotateSlow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-{% if current_session %}
-<div class="card">
-  <h3>Session Statistics</h3>
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
-    <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); text-align: center;">
-      <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">{{ current_session.incidents|length }}</div>
-      <div style="color: var(--muted-foreground); margin-top: 0.5rem;">Total Incidents</div>
-    </div>
-    <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); text-align: center;">
-      <div style="font-size: 2rem; font-weight: 700; color: var(--success);">{{ current_session.images|length }}</div>
-      <div style="color: var(--muted-foreground); margin-top: 0.5rem;">Images Captured</div>
-    </div>
-    <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); text-align: center;">
-      <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">{{ sessions|length }}</div>
-      <div style="color: var(--muted-foreground); margin-top: 0.5rem;">Total Sessions</div>
-    </div>
-  </div>
-</div>
-{% endif %}
+  .icon-float, .icon-float-delayed,
+  .icon-pulse, .icon-pulse-delayed,
+  .icon-wiggle, .icon-wiggle-delayed,
+  .icon-rotate, .icon-rotate-delayed {
+    position: absolute;
+    font-size: 2.25rem;
+    opacity: 0.95;
+    text-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  }
+  .icon-float { animation: floatY 4.5s ease-in-out infinite; }
+  .icon-float-delayed { animation: floatY 5.2s ease-in-out 0.6s infinite; }
+  .icon-pulse { animation: pulseSoft 2.2s ease-in-out infinite; }
+  .icon-pulse-delayed { animation: pulseSoft 2.8s ease-in-out 0.4s infinite; }
+  .icon-wiggle { animation: wiggle 2.4s ease-in-out infinite; }
+  .icon-wiggle-delayed { animation: wiggle 2.8s ease-in-out 0.5s infinite; }
+  .icon-rotate { animation: rotateSlow 12s linear infinite; transform-origin: 50% 52%; }
+  .icon-rotate-delayed { animation: rotateSlow 16s linear 0.6s infinite; transform-origin: 50% 52%; }
+</style>
 {% endblock %}
