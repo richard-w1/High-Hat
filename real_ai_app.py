@@ -591,6 +591,32 @@ def get_latest_results():
         'results': latest_results
     })
 
+@app.route('/api/audio_alert', methods=['GET'])
+def get_audio_alert():
+    """Get latest audio alert for threat warnings"""
+    try:
+        alert = audio_notifier.get_latest_alert()
+        if alert:
+            print(f"🔊 Frontend fetched audio alert")
+            return jsonify({
+                'has_alert': True,
+                'alert': alert
+            })
+        else:
+            return jsonify({'has_alert': False})
+    except Exception as e:
+        print(f"❌ Error serving audio alert: {e}")
+        return jsonify({'has_alert': False, 'error': str(e)}), 500
+
+@app.route('/api/clear_audio_alert', methods=['POST'])
+def clear_audio_alert():
+    """Clear the current audio alert after it's been played"""
+    try:
+        audio_notifier.clear_alert()
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/api/hand_detection_data', methods=['GET'])
 def get_hand_detection_data():
     """Get detailed hand detection data for frontend"""

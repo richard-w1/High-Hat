@@ -1231,30 +1231,179 @@ function initCharts() {
   // Live Session Incident Chart
   const liveCtx = document.getElementById('liveIncidentChart');
   if (liveCtx) {
-    charts.liveIncident = new Chart(liveCtx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Incidents Over Time',
-          data: [],
-          borderColor: 'rgb(251, 146, 60)',
-          backgroundColor: 'rgba(251, 146, 60, 0.1)',
-          tension: 0.4,
-          fill: true
-        }]
+  charts.liveIncident = new Chart(liveCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Incidents Over Time',
+        data: [],
+        borderColor: 'rgb(251, 146, 60)',
+        backgroundColor: 'rgba(251, 146, 60, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          y: { beginAtZero: true, ticks: { stepSize: 1 } }
-        }
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
       }
-    });
+    }
+  });
+  }
+}
+
+// Audio Alert System
+let lastAlertTimestamp = null;
+let audioContext = null;
+
+async function checkForAudioAlerts() {
+  try {
+    const response = await fetch('/api/audio_alert');
+    const data = await response.json();
+    
+    if (data.has_alert && data.alert) {
+      const alert = data.alert;
+      
+      // Check if this is a new alert (avoid replaying same alert)
+      if (alert.timestamp !== lastAlertTimestamp) {
+        console.log('🚨 NEW REAL-TIME THREAT ALERT!');
+        console.log(`Short Message: ${alert.short_message}`);
+        console.log(`Confidence: ${alert.confidence}%`);
+        console.log(`Full Explanation: ${alert.full_explanation}`);
+        
+        // Play the audio alert
+        await playAudioAlert(alert.audio);
+        
+        // Show visual alert on page (using short message)
+        showVisualAlert(alert);
+        
+        // Update last alert timestamp
+        lastAlertTimestamp = alert.timestamp;
+        
+        // Clear the alert on backend after playing
+        await fetch('/api/clear_audio_alert', { method: 'POST' });
+      }
+    }
+  } catch (error) {
+    console.error('Error checking for audio alerts:', error);
+  }
+}
+
+async function playAudioAlert(base64Audio) {
+  try {
+    // Convert base64 to blob
+    const byteCharacters = atob(base64Audio);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+    
+    // Create audio element and play
+    const audio = new Audio(URL.createObjectURL(blob));
+    audio.volume = 1.0; // Max volume for alerts
+    
+    console.log('🔊 Playing audio alert...');
+    await audio.play();
+    
+    // Clean up when done
+    audio.onended = () => {
+      URL.revokeObjectURL(audio.src);
+      console.log('✅ Audio alert finished');
+    };
+    
+  } catch (error) {
+    console.error('Error playing audio alert:', error);
+    // Fallback to browser beep if audio fails
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0.3, context.currentTime);
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + 0.5);
+  }
+}
+
+function showVisualAlert(alert) {
+  // Create a prominent visual alert banner
+  const existingAlert = document.getElementById('threatAlertBanner');
+  if (existingAlert) {
+    existingAlert.remove();
+  }
+  
+  const banner = document.createElement('div');
+  banner.id = 'threatAlertBanner';
+  banner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
+    animation: alertPulse 1s ease-in-out infinite;
+  `;
+  
+  banner.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+      <span class="material-icons" style="font-size: 2rem; animation: alertShake 0.5s ease-in-out infinite;">warning</span>
+      <div>
+        <div style="font-size: 1.5rem; font-weight: 700;">⚠️ SECURITY THREAT DETECTED ⚠️</div>
+        <div style="font-size: 1rem; margin-top: 0.5rem; opacity: 0.9;">
+          ${alert.short_message || alert.explanation}
+        </div>
+      </div>
+      <button onclick="dismissAlert()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
+        Dismiss
+      </button>
+    </div>
+  `;
+  
+  document.body.insertBefore(banner, document.body.firstChild);
+  
+  // Add CSS animations
+  if (!document.getElementById('alertAnimations')) {
+    const style = document.createElement('style');
+    style.id = 'alertAnimations';
+    style.textContent = `
+      @keyframes alertPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.9; }
+      }
+      @keyframes alertShake {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-10deg); }
+        75% { transform: rotate(10deg); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // Auto-dismiss after 30 seconds
+  setTimeout(() => {
+    dismissAlert();
+  }, 30000);
+}
+
+function dismissAlert() {
+  const banner = document.getElementById('threatAlertBanner');
+  if (banner) {
+    banner.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => banner.remove(), 300);
   }
 }
 
@@ -1263,8 +1412,12 @@ initCharts();
 
 setInterval(refreshData, 2000);
 
+// Check for audio alerts every 2 seconds
+setInterval(checkForAudioAlerts, 2000);
+
 refreshData();
 updateStreamStatus();
+checkForAudioAlerts(); // Check immediately on load
 </script>
 
 <script src="{{ url_for('static', filename='audit-table.js') }}"></script>
