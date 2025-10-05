@@ -1,4 +1,4 @@
-﻿# High-Hat
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/735fdc0a-d6f8-41fe-8bda-5820ce07e4f2" />﻿# High-Hat
 
 High-Hat is a real-time hand gesture detection application built using Python and YOLOv8. It leverages computer vision techniques to recognize and respond to hand movements, providing an interactive experience.
 
@@ -62,6 +62,9 @@ This will launch the application, and you should see a window displaying the cam
 
 ## Project Structure
 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/fd99b740-54f4-4bd7-9a3f-8f2c4de46687" />
+
+
 * `app.py`: Main application entry point.
 * `audio_notifier.py`: Handles audio feedback using ElevenLabs API.
 * `gemini_analyzer.py`: Contains logic for analyzing hand gestures and images using Gemini 2.5 Pro API.
@@ -70,6 +73,32 @@ This will launch the application, and you should see a window displaying the cam
 * `yolov8n.pt`: Pre-trained YOLOv8 model weights.
 * `requirements.txt`: Python dependencies for the project.
 
+## Directory Skeleton
+
+# High-Hat/
+* ├── real_ai_app.py           # Main Flask app orchestrating all modules
+* ├── hand_detector.py         # MediaPipe-based hand tracking logic
+* ├── gemini_analyzer.py       # AI reasoning using Gemini Vision API
+* ├── audio_notifier.py        # ElevenLabs text-to-speech audio alerts
+* ├── models.py                # SQLAlchemy ORM models (Session, Incident, etc.)
+* ├── migrate_database.py      # Initializes the SQLite schema
+* │
+* ├── templates/               # HTML (Flask Jinja templates)
+* │   ├── layout.html
+* │   ├── dashboard.html
+* │   ├── index.html
+* │   ├── incident.html
+* │   ├── sessions_all.html
+* │
+* ├── static/                  # Frontend assets
+* │   ├── styles.css
+* │   ├── dashboard.js
+* │   ├── audit-table.js
+* │   └── placeholder.svg
+* │
+* └── requirements.txt         # Python dependencies
+
+
 ## Contributing
 
 Contributions are welcome! Please fork the repository, make your changes, and submit a pull request.
@@ -77,5 +106,6 @@ Contributions are welcome! Please fork the repository, make your changes, and su
 ## License
 
 This project is licensed under the MIT License.
+
 
 
