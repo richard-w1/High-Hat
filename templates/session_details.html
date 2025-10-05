@@ -1,0 +1,39 @@
+{% extends 'layout.html' %}
+
+{% block title %}Session #{{ incident.id }} - M.O.N.K.Y{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Session #{{ incident.id }}</h2>
+  
+  <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); margin: 1.5rem 0;">
+    <p style="margin: 0.5rem 0;"><strong>Description:</strong> {{ incident.description or 'No description available' }}</p>
+    <p style="margin: 0.5rem 0;"><strong>Type:</strong> {{ incident.incident_type or 'Session' }}</p>
+    {% if incident.confidence %}
+      <p style="margin: 0.5rem 0;"><strong>Confidence:</strong> {{ '%0.2f' % incident.confidence }}%</p>
+    {% endif %}
+    <p style="margin: 0.5rem 0;"><strong>Started:</strong> {{ incident.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+    {% if incident.occurred_at and incident.occurred_at != incident.started_at %}
+      <p style="margin: 0.5rem 0;"><strong>Event Time:</strong> {{ incident.occurred_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+    {% endif %}
+  </div>
+
+  {% if incident.images %}
+    <div>
+      <h3>Captured Images</h3>
+      <div class="images">
+        {% for img in incident.images %}
+          <img src="/static/{{ img }}" alt="Session image {{ loop.index }}" />
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+    <a href="/" class="btn">Back to Overview</a>
+    <form method="POST" action="{{ url_for('delete_incident', incident_id=incident.id) }}" style="display: inline;">
+      <button class="btn danger" type="submit" onclick="return confirm('Are you sure you want to delete this session?')">Delete Session</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

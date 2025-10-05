@@ -1,29 +1,40 @@
 {% extends 'layout.html' %}
 
+{% block title %}Recent Sessions - M.O.N.K.Y{% endblock %}
+
 {% block content %}
-  <div class="card">
-    <h2>Past 3 Sessions</h2>
-    <p><a href="{{ url_for('sessions_all') }}">View all sessions</a></p>
-    <table class="sessions-table">
-      <thead>
-        <tr><th>ID</th><th>Start</th><th>Description</th><th>Sessions</th><th>Actions</th></tr>
-      </thead>
-      <tbody>
-        {% for s in sessions %}
-          <tr>
-            <td>S-{{ s.id }}</td>
-            <td>{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td>{{ s.description }}</td>
-            <td>{{ s.images|length }}</td>
-            <td>
-              <a class="btn tiny" href="{{ url_for('session_detail', session_id=s.id) }}">Open</a>
-              <form method="POST" action="{{ url_for('delete_session', session_id=s.id) }}" style="display:inline" onsubmit="return confirm('Delete session S-{{ s.id }}?')">
-                <button class="btn tiny">Delete</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2 style="margin: 0;">Past 3 Sessions</h2>
+    <a href="{{ url_for('sessions_all') }}" class="btn">View All Sessions</a>
   </div>
+  
+  <table class="sessions-table">
+    <thead>
+      <tr>
+        <th>Session ID</th>
+        <th>Started</th>
+        <th>Description</th>
+        <th>Images</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sessions %}
+        <tr>
+          <td style="color: var(--primary); font-weight: 600;">S-{{ s.id }}</td>
+          <td>{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ s.description }}</td>
+          <td>{{ s.images|length }}</td>
+          <td>
+            <a class="btn tiny" href="{{ url_for('session_detail', session_id=s.id) }}">Open</a>
+            <form method="POST" action="{{ url_for('delete_session', session_id=s.id) }}" style="display:inline; margin-left: 0.5rem;" onsubmit="return confirm('Delete session S-{{ s.id }}?')">
+              <button class="btn tiny danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}
