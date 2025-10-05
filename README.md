@@ -47,7 +47,8 @@ Set up your environment with the necessary API keys:
 export GEMINI_API_KEY='your_gemini_api_key_here'
 export ELEVENLABS_API_KEY='your_elevenlabs_api_key_here'
 ```
-<img width="1671" height="596" alt="image" src="https://github.com/user-attachments/assets/97e43c65-655a-4652-9c45-d9543ad330b2" />
+<img width="1671" height="596" alt="image" src="https://github.com/user-attachments/assets/36909f17-147c-4d8e-b1d4-6b687cdc899c" />
+
 
 ## Usage
 
@@ -76,4 +77,5 @@ Contributions are welcome! Please fork the repository, make your changes, and su
 ## License
 
 This project is licensed under the MIT License.
+
 
