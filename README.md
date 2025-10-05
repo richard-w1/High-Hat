@@ -1,4 +1,4 @@
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/735fdc0a-d6f8-41fe-8bda-5820ce07e4f2" />﻿# High-Hat
+#﻿# High-Hat
 
 High-Hat is a real-time hand gesture detection application built using Python and YOLOv8. It leverages computer vision techniques to recognize and respond to hand movements, providing an interactive experience.
 
@@ -106,6 +106,7 @@ Contributions are welcome! Please fork the repository, make your changes, and su
 ## License
 
 This project is licensed under the MIT License.
+
 
 
 
