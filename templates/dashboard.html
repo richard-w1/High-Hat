@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backpack Security Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .video-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .incidents {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button.danger {
+            background: #e74c3c;
+        }
+        button.danger:hover {
+            background: #c0392b;
+        }
+        button.success {
+            background: #27ae60;
+        }
+        button.success:hover {
+            background: #229954;
+        }
+        button.info {
+            background: #3498db;
+        }
+        button.info:hover {
+            background: #2980b9;
+        }
+
+        .realtime-results {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .result-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .result-item .label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .result-item .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .status.detected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.not-detected {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status.unknown {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.monitoring {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.stopped {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .incident-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .incident-item.high-confidence {
+            border-left: 4px solid #e74c3c;
+        }
+        .incident-item.medium-confidence {
+            border-left: 4px solid #f39c12;
+        }
+        .incident-item.low-confidence {
+            border-left: 4px solid #3498db;
+        }
+        #videoStream {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Backpack Security System</h1>
+            <p>AI-powered theft detection with Gemini, YOLO, and ElevenLabs</p>
+        </div>
+
+        <div class="controls">
+            <h3>Monitoring Controls</h3>
+            <button id="startBtn" onclick="startMonitoring()">Start Monitoring</button>
+            <button id="stopBtn" onclick="stopMonitoring()" class="danger">Stop Monitoring</button>
+            <button onclick="refreshData()">Refresh Data</button>
+            <button onclick="testIncident()" class="success">Test Incident</button>
+            <button onclick="testHandDetection()" class="info">Test Hand Detection</button>
+            <button onclick="testGemini()" class="info">Test Gemini</button>
+            <button onclick="testAudio()" class="info">Test Audio</button>
+            <div id="status" class="status stopped">Status: Stopped</div>
+        </div>
+
+        <div class="video-container">
+            <h3>🎯 Live YOLO Detection Stream</h3>
+            <div id="yoloFeed" style="text-align: center;">
+                <img id="yoloStream" src="/yolo_stream" alt="YOLO Detection Feed" style="max-width: 100%; height: auto; border: 2px solid #007bff; border-radius: 8px;">
+                <div id="streamStatus" style="margin-top: 10px;">
+                    <span id="streamIndicator" class="status not-detected">Stream: Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="realtime-results" id="realtimeResults" style="display: none;">
+            <h3>Real-Time Analysis Results</h3>
+            <div class="result-card">
+                <div class="result-header">
+                    <span id="photoCount">Photo #0</span>
+                    <span id="resultTimestamp">--:--:--</span>
+                </div>
+                <div class="result-content">
+                    <div class="result-item">
+                        <span class="label">Hand Detection:</span>
+                        <span id="handDetection" class="status">Unknown</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="label">Hand Confidence:</span>
+                        <span id="handConfidence">0%</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="label">Theft Analysis:</span>
+                        <span id="theftAnalysis" class="status">Unknown</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="label">Theft Confidence:</span>
+                        <span id="theftConfidence">0%</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="label">Explanation:</span>
+                        <span id="explanation">No analysis yet</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-info" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 20px 0;">
+            <h4>🔍 Debug Information</h4>
+            <div id="debugStatus">
+                <p><strong>Dashboard Updates:</strong> Every 5 seconds</p>
+                <p><strong>Photo Frequency:</strong> Every 1 second (when monitoring)</p>
+                <p><strong>Last Update:</strong> <span id="lastUpdateTime">Never</span></p>
+                <p><strong>API Status:</strong> <span id="apiStatus">Unknown</span></p>
+            </div>
+        </div>
+
+        <div class="incidents">
+            <h3>Recent Incidents</h3>
+            <div id="incidentsList">
+                <p>No incidents recorded yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isMonitoring = false;
+
+        async function startMonitoring() {
+            try {
+                const response = await fetch('/api/start_monitoring', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    isMonitoring = true;
+                    updateStatus('Monitoring', 'monitoring');
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error starting monitoring: ' + error.message);
+            }
+        }
+
+        async function stopMonitoring() {
+            try {
+                const response = await fetch('/api/stop_monitoring', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    isMonitoring = false;
+                    updateStatus('Stopped', 'stopped');
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                }
+            } catch (error) {
+                alert('Error stopping monitoring: ' + error.message);
+            }
+        }
+
+        function updateStatus(text, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = 'Status: ' + text;
+            statusDiv.className = 'status ' + className;
+        }
+
+        async function testIncident() {
+            try {
+                const response = await fetch('/api/test_incident', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                alert('Test incident: ' + data.message);
+                refreshData();
+            } catch (error) {
+                alert('Error creating test incident: ' + error.message);
+            }
+        }
+
+        async function testHandDetection() {
+            try {
+                const response = await fetch('/api/test_hand_detection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                alert('Hand detection test: ' + data.message);
+            } catch (error) {
+                alert('Error testing hand detection: ' + error.message);
+            }
+        }
+
+        async function testGemini() {
+            try {
+                const response = await fetch('/api/test_gemini', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                alert('Gemini test: ' + data.message);
+            } catch (error) {
+                alert('Error testing Gemini: ' + error.message);
+            }
+        }
+
+        async function testAudio() {
+            try {
+                const response = await fetch('/api/test_audio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                alert('Audio test: ' + data.message);
+            } catch (error) {
+                alert('Error testing audio: ' + error.message);
+            }
+        }
+
+        async function refreshData() {
+            try {
+                console.log('🔄 DEBUG: Refreshing dashboard data...');
+                
+                // Update debug info
+                document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
+                document.getElementById('apiStatus').textContent = 'Fetching...';
+                
+                // Get incidents
+                const incidentsResponse = await fetch('/api/incidents');
+                const incidentsData = await incidentsResponse.json();
+                displayIncidents(incidentsData.incidents);
+
+                // Get session info
+                const sessionResponse = await fetch('/api/session');
+                const sessionData = await sessionResponse.json();
+                console.log('📊 DEBUG: Session data:', sessionData);
+                
+                if (sessionData.session && sessionData.session.is_active) {
+                    isMonitoring = true;
+                    updateStatus('Monitoring', 'monitoring');
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    
+                    // Show real-time results section when monitoring
+                    document.getElementById('realtimeResults').style.display = 'block';
+                    
+                    // Get latest results
+                    console.log('📸 DEBUG: Fetching latest results...');
+                    const resultsResponse = await fetch('/api/latest_results');
+                    const resultsData = await resultsResponse.json();
+                    console.log('📊 DEBUG: Latest results:', resultsData);
+                    updateRealtimeResults(resultsData.results);
+                    
+                    // Get YOLO visualized image
+                    console.log('🎯 DEBUG: Fetching YOLO visualized image...');
+                    const imageResponse = await fetch('/api/visualized_image');
+                    const imageData = await imageResponse.json();
+                    updateYOLOFeed(imageData);
+                    
+                    document.getElementById('apiStatus').textContent = 'Connected';
+                } else {
+                    // Hide real-time results when not monitoring
+                    document.getElementById('realtimeResults').style.display = 'none';
+                    console.log('⏹️ DEBUG: Not monitoring, hiding real-time results');
+                    document.getElementById('apiStatus').textContent = 'Not monitoring';
+                }
+            } catch (error) {
+                console.error('❌ DEBUG: Error refreshing data:', error);
+                document.getElementById('apiStatus').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function updateRealtimeResults(results) {
+            if (!results) {
+                console.log('❌ DEBUG: No results to update');
+                return;
+            }
+            
+            console.log('📊 DEBUG: Updating real-time results:', results);
+            
+            // Update photo count
+            document.getElementById('photoCount').textContent = `Photo #${results.photo_count}`;
+            console.log(`📸 DEBUG: Updated photo count to #${results.photo_count}`);
+            
+            // Update timestamp
+            if (results.timestamp) {
+                const date = new Date(results.timestamp * 1000);
+                document.getElementById('resultTimestamp').textContent = date.toLocaleTimeString();
+                console.log(`⏰ DEBUG: Updated timestamp to ${date.toLocaleTimeString()}`);
+            }
+            
+            // Update hand detection
+            const handDetection = document.getElementById('handDetection');
+            if (results.hands_detected) {
+                handDetection.textContent = 'Detected';
+                handDetection.className = 'status detected';
+                console.log('👋 DEBUG: Hands detected');
+            } else {
+                handDetection.textContent = 'Not Detected';
+                handDetection.className = 'status not-detected';
+                console.log('👀 DEBUG: No hands detected');
+            }
+            
+            // Update hand confidence
+            document.getElementById('handConfidence').textContent = `${Math.round(results.hand_confidence)}%`;
+            console.log(`📊 DEBUG: Hand confidence: ${Math.round(results.hand_confidence)}%`);
+            
+            // Update theft analysis
+            const theftAnalysis = document.getElementById('theftAnalysis');
+            if (results.theft_detected) {
+                theftAnalysis.textContent = 'Suspicious';
+                theftAnalysis.className = 'status detected';
+                console.log('🚨 DEBUG: Theft detected');
+            } else {
+                theftAnalysis.textContent = 'Safe';
+                theftAnalysis.className = 'status not-detected';
+                console.log('✅ DEBUG: No theft detected');
+            }
+            
+            // Update theft confidence
+            document.getElementById('theftConfidence').textContent = `${Math.round(results.theft_confidence)}%`;
+            console.log(`📊 DEBUG: Theft confidence: ${Math.round(results.theft_confidence)}%`);
+            
+            // Update explanation
+            document.getElementById('explanation').textContent = results.explanation || 'No analysis yet';
+            console.log(`💭 DEBUG: Explanation: ${results.explanation || 'No analysis yet'}`);
+        }
+
+        function updateYOLOFeed(imageData) {
+            // This function is now handled by the direct MJPEG stream
+            console.log('🎯 DEBUG: YOLO feed is now handled by direct MJPEG stream');
+        }
+
+        function updateStreamStatus() {
+            const streamIndicator = document.getElementById('streamIndicator');
+            const yoloStream = document.getElementById('yoloStream');
+            
+            // Check if stream is loading/working
+            yoloStream.onload = function() {
+                streamIndicator.textContent = 'Stream: Active';
+                streamIndicator.className = 'status detected';
+                console.log('🎥 DEBUG: YOLO stream loaded successfully');
+            };
+            
+            yoloStream.onerror = function() {
+                streamIndicator.textContent = 'Stream: Error';
+                streamIndicator.className = 'status unknown';
+                console.log('❌ DEBUG: YOLO stream failed to load');
+            };
+        }
+
+        function displayIncidents(incidents) {
+            const incidentsList = document.getElementById('incidentsList');
+            
+            if (incidents.length === 0) {
+                incidentsList.innerHTML = '<p>No incidents recorded yet.</p>';
+                return;
+            }
+
+            let html = '';
+            incidents.forEach(incident => {
+                const confidence = Math.round(incident.confidence);
+                const timestamp = new Date(incident.timestamp).toLocaleString();
+                let confidenceClass = 'low-confidence';
+                
+                if (confidence >= 80) confidenceClass = 'high-confidence';
+                else if (confidence >= 60) confidenceClass = 'medium-confidence';
+
+                html += `
+                    <div class="incident-item ${confidenceClass}">
+                        <h4>🚨 Security Alert - ${confidence}% Confidence</h4>
+                        <p><strong>Time:</strong> ${timestamp}</p>
+                        <p><strong>Explanation:</strong> ${incident.explanation || 'No details available'}</p>
+                        <p><strong>Status:</strong> ${incident.resolved ? 'Resolved' : 'Active'}</p>
+                    </div>
+                `;
+            });
+
+            incidentsList.innerHTML = html;
+        }
+
+        // Auto-refresh data every 5 seconds
+        setInterval(refreshData, 2000);
+
+        // Initial load
+        refreshData();
+        updateStreamStatus();
+    </script>
+</body>
+</html>

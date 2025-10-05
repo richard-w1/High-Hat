@@ -1,0 +1,14 @@
+flask==2.3.3
+flask-cors==4.0.0
+picamera2==0.3.12
+opencv-python==4.8.1.78
+ultralytics==8.0.196
+google-generativeai==0.3.2
+authlib==1.2.1
+flask-sqlalchemy==3.0.5
+python-dotenv==1.0.0
+requests==2.31.0
+Pillow==10.0.1
+numpy==1.24.3
+elevenlabs==0.2.26
+mediapipe==0.10.21
