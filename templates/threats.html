@@ -19,8 +19,8 @@
     <div style="font-size: 0.875rem; color: var(--muted-foreground);">Last 24 Hours</div>
   </div>
   <div class="card" style="text-align: center;">
-    <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary);" id="avgConfidence">0%</div>
-    <div style="font-size: 0.875rem; color: var(--muted-foreground);">Avg Confidence</div>
+    <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary);" id="avgConfidence"></div>
+    <div style="font-size: 0.875rem; color: var(--muted-foreground);">Threat Score</div>
   </div>
   <div class="card" style="text-align: center;">
     <div style="font-size: 2.5rem; font-weight: 700; color: var(--success);" id="sessionsAffected">0</div>
@@ -41,7 +41,7 @@
       </select>
     </div>
     <div style="flex: 1; min-width: 200px;">
-      <label style="font-size: 0.875rem; color: var(--muted-foreground); display: block; margin-bottom: 0.25rem;">Confidence Level</label>
+      <label style="font-size: 0.875rem; color: var(--muted-foreground); display: block; margin-bottom: 0.25rem;">Threat Score</label>
       <select id="confidenceFilter" onchange="filterThreats()" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--background); color: var(--foreground);">
         <option value="all">All Levels</option>
         <option value="high">High (>75%)</option>
@@ -149,7 +149,7 @@ function updateStatistics() {
   document.getElementById('recentThreats').textContent = recentThreats.length;
   
   const avgConf = allThreats.length > 0 ? 
-    allThreats.reduce((sum, t) => sum + (t.threat_confidence || 0), 0) / allThreats.length * 100 : 0;
+    allThreats.reduce((sum, t) => sum + (t.threat_confidence || 0), 0) / allThreats.length : 0;
   document.getElementById('avgConfidence').textContent = `${Math.round(avgConf)}%`;
   
   const uniqueSessions = new Set(allThreats.map(t => t.session_id));
@@ -177,7 +177,7 @@ function filterThreats() {
     
     // Confidence filter
     if (confidenceFilter !== 'all') {
-      const conf = (threat.threat_confidence || 0) * 100;
+      const conf = (threat.threat_confidence || 0);
       if (confidenceFilter === 'high' && conf <= 75) return false;
       if (confidenceFilter === 'medium' && (conf <= 50 || conf > 75)) return false;
       if (confidenceFilter === 'low' && conf >= 50) return false;
@@ -229,7 +229,7 @@ function renderThreats() {
       `${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s` : 
       `${Math.floor(duration)}s`;
     
-    const confidence = (threat.threat_confidence || 0) * 100;
+    const confidence = (threat.threat_confidence || 0);
     const confidenceColor = confidence > 75 ? 'var(--danger)' : confidence > 50 ? 'var(--warning)' : 'var(--muted-foreground)';
     
     return `
@@ -285,7 +285,7 @@ function renderThreats() {
                     <div style="background: var(--muted); padding: 0.75rem; border-radius: var(--radius); font-size: 0.875rem;">
                       <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
                         <strong>Analysis #${idx + 1}</strong>
-                        <span style="color: var(--danger);">${(analysis.confidence * 100).toFixed(1)}%</span>
+                        <span style="color: var(--danger);">${(analysis.confidence).toFixed(1)}%</span>
                       </div>
                       <div>Frames ${analysis.frame_start}-${analysis.frame_end} (${analysis.total_frames_analyzed} frames)</div>
                       ${analysis.explanation ? `<div style="margin-top: 0.5rem; font-style: italic;">"${analysis.explanation}"</div>` : ''}
@@ -362,7 +362,7 @@ async function viewIncident(incidentId) {
         </div>
         <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
           <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Max Confidence</div>
-          <div style="font-size: 1.5rem; font-weight: 700;">${(incident.max_confidence * 100).toFixed(1)}%</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">${(incident.max_confidence).toFixed(1)}</div>
         </div>
         <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
           <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Status</div>
@@ -376,7 +376,7 @@ async function viewIncident(incidentId) {
         <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
           <div style="font-weight: 700; color: var(--danger); margin-bottom: 0.5rem;">
             <span class="material-icons" style="vertical-align: middle; font-size: 1.2rem;">warning</span>
-            Threat Detected (${(incident.threat_confidence * 100).toFixed(1)}% confidence)
+            Threat Detected (${(incident.threat_confidence).toFixed(1)}% confidence)
           </div>
           <div style="color: var(--danger);">${incident.threat_explanation || 'No explanation provided'}</div>
         </div>
@@ -401,7 +401,7 @@ async function viewIncident(incidentId) {
                 <span style="color: var(--muted-foreground);">Frames:</span> ${analysis.frame_start} - ${analysis.frame_end} (${analysis.total_frames_analyzed} frames)
               </div>
               <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">
-                <span style="color: var(--muted-foreground);">Confidence:</span> ${(analysis.confidence * 100).toFixed(1)}% | 
+                <span style="color: var(--muted-foreground);">Confidence:</span> ${(analysis.confidence).toFixed(1)}% | 
                 <span style="color: var(--muted-foreground);">Latency:</span> ${analysis.api_latency_ms}ms
               </div>
               ${analysis.explanation ? `<div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--background); border-radius: var(--radius); font-size: 0.875rem;">${analysis.explanation}</div>` : ''}
