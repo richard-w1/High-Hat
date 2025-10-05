@@ -150,7 +150,8 @@ class IncidentFrame(db.Model):
             'hands_detected': self.hands_detected,
             'hand_count': self.hand_count,
             'hand_confidence': self.hand_confidence,
-            'hand_data': json.loads(self.hand_data) if self.hand_data else []
+            'hand_data': json.loads(self.hand_data) if self.hand_data else [],
+            'frame_image': self.image_data  # Include base64 image data for display
         }
     
     def set_hand_data(self, hand_list):

@@ -465,6 +465,73 @@ def get_incidents():
     incidents = Incident.query.order_by(Incident.started_at.desc()).limit(20).all()
     return jsonify({'incidents': [incident.to_dict() for incident in incidents]})
 
+@app.route('/api/database_stats')
+def get_database_stats():
+    """Debug endpoint to check database contents"""
+    try:
+        total_sessions = Session.query.count()
+        total_incidents = Incident.query.count()
+        threats_count = Incident.query.filter_by(threat_detected=True).count()
+        escalated_count = Incident.query.filter_by(is_escalated=True).count()
+        analyzed_count = Incident.query.filter_by(gemini_analyzed=True).count()
+        
+        # Get sample of incidents with their threat status
+        sample_incidents = Incident.query.order_by(Incident.id.desc()).limit(5).all()
+        incidents_sample = [{
+            'id': inc.id,
+            'session_id': inc.session_id,
+            'is_escalated': inc.is_escalated,
+            'gemini_analyzed': inc.gemini_analyzed,
+            'threat_detected': inc.threat_detected,
+            'threat_confidence': inc.threat_confidence,
+            'total_frames': inc.total_frames
+        } for inc in sample_incidents]
+        
+        return jsonify({
+            'total_sessions': total_sessions,
+            'total_incidents': total_incidents,
+            'threats_detected': threats_count,
+            'escalated_incidents': escalated_count,
+            'analyzed_incidents': analyzed_count,
+            'sample_incidents': incidents_sample
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/threats')
+def get_threats():
+    """Get all incidents marked as threats by Gemini"""
+    try:
+        # Query for threats
+        threats = Incident.query.filter_by(threat_detected=True).order_by(Incident.started_at.desc()).all()
+        
+        print(f"🔍 Threats API called - Found {len(threats)} threats in database")
+        
+        # Also check total incidents for debugging
+        all_incidents = Incident.query.count()
+        print(f"   Total incidents in database: {all_incidents}")
+        
+        threat_data = []
+        for threat in threats:
+            threat_dict = threat.to_dict()
+            # Include analyses for each threat
+            threat_dict['analyses'] = [analysis.to_dict() for analysis in threat.gemini_analyses]
+            # Add a sample frame if available (using image_data field from IncidentFrame)
+            if threat.frames:
+                sample_frame = threat.frames[0]  # Get first frame as sample
+                threat_dict['sample_frame'] = sample_frame.image_data if hasattr(sample_frame, 'image_data') else None
+            else:
+                threat_dict['sample_frame'] = None
+            threat_data.append(threat_dict)
+            print(f"   - Threat #{threat.id}: {threat.threat_explanation[:50] if threat.threat_explanation else 'No explanation'}...")
+        
+        return jsonify({'threats': threat_data})
+    except Exception as e:
+        print(f"❌ Error in get_threats: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e), 'threats': []}), 500
+
 @app.route('/api/sessions')
 def get_sessions():
     """Get all sessions"""
@@ -716,6 +783,18 @@ def session_detail(session_id):
 @app.route('/incidents/<int:incident_id>')
 def incident_detail(incident_id):
     return render_template('incident.html')
+
+@app.route('/threats')
+def threats():
+    return render_template('threats.html')
+
+@app.route('/analysis')
+def analysis():
+    return render_template('analysis.html')
+
+@app.route('/settings')
+def settings():
+    return render_template('settings.html')
 
 if __name__ == '__main__':
     print("🚀 Starting REAL AI-Powered Security System")

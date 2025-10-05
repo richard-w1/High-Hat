@@ -1,0 +1,39 @@
+{% extends 'layout.html' %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">settings</span>System Settings</h2>
+  <p style="color: var(--muted-foreground);">Configure your security monitoring system preferences</p>
+</div>
+
+<div class="card" style="margin-top: 2rem;">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">videocam</span>Camera Settings</h3>
+  <div style="margin-top: 1rem;">
+    <p style="color: var(--muted-foreground); font-size: 0.875rem;">Camera settings and configuration options will be available here.</p>
+  </div>
+</div>
+
+<div class="card" style="margin-top: 2rem;">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">notifications</span>Alert Settings</h3>
+  <div style="margin-top: 1rem;">
+    <p style="color: var(--muted-foreground); font-size: 0.875rem;">Configure alert thresholds and notification preferences.</p>
+  </div>
+</div>
+
+<div class="card" style="margin-top: 2rem;">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">psychology</span>AI Configuration</h3>
+  <div style="margin-top: 1rem;">
+    <p style="color: var(--muted-foreground); font-size: 0.875rem;">Adjust AI detection sensitivity and Gemini analysis parameters.</p>
+  </div>
+</div>
+
+<div class="card" style="margin-top: 2rem;">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">storage</span>Data Management</h3>
+  <div style="margin-top: 1rem;">
+    <p style="color: var(--muted-foreground); font-size: 0.875rem;">Manage stored sessions, incidents, and cleanup policies.</p>
+  </div>
+</div>
+{% endblock %}
+
