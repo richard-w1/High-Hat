@@ -18,12 +18,33 @@
       <div class="controls">
         <button id="startBtn" onclick="startMonitoring()">Start Monitoring</button>
         <button id="stopBtn" onclick="stopMonitoring()" class="danger">Stop Monitoring</button>
-        <button onclick="refreshData()">Refresh Data</button>
-        <button onclick="testIncident()" class="success">Test Incident</button>
-        <button onclick="testHandDetection()" class="info">Test Hand Detection</button>
-        <button onclick="testGemini()" class="info">Test Gemini</button>
-        <button onclick="testAudio()" class="info">Test Audio</button>
         <div id="status" class="status stopped">Status: Stopped</div>
+      </div>
+    </div>
+    
+    <!-- Current Session Live Stats -->
+    <div class="card" id="liveSessionStats" style="display: none;">
+      <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">show_chart</span>Live Session Analytics</h3>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem;">
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius); text-align: center;">
+          <div style="font-size: 2rem; font-weight: 700; color: var(--primary);" id="liveFrameCount">0</div>
+          <div style="font-size: 0.875rem; color: var(--muted-foreground);">Frames Processed</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius); text-align: center;">
+          <div style="font-size: 2rem; font-weight: 700; color: var(--warning);" id="liveIncidentCount">0</div>
+          <div style="font-size: 0.875rem; color: var(--muted-foreground);">Incidents</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius); text-align: center;">
+          <div style="font-size: 2rem; font-weight: 700; color: var(--danger);" id="liveEscalationCount">0</div>
+          <div style="font-size: 0.875rem; color: var(--muted-foreground);">Escalations</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius); text-align: center;">
+          <div style="font-size: 2rem; font-weight: 700; color: var(--success);" id="liveDuration">0s</div>
+          <div style="font-size: 0.875rem; color: var(--muted-foreground);">Duration</div>
+        </div>
+      </div>
+      <div style="margin-top: 1.5rem;">
+        <canvas id="liveIncidentChart" style="max-height: 150px;"></canvas>
       </div>
     </div>
 
@@ -138,8 +159,95 @@
   </div>
 </div>
 
+<!-- Analytics & Visualizations -->
+<div class="card" style="margin-top: 2rem;">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">analytics</span>System Analytics</h3>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-top: 1.5rem;">
+    
+    <!-- Detection Timeline -->
+    <div>
+      <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--muted-foreground);">Detection Activity (Last 24h)</h4>
+      <canvas id="detectionTimelineChart" style="max-height: 250px;"></canvas>
+    </div>
+    
+    <!-- Incident Types Distribution -->
+    <div>
+      <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--muted-foreground);">Threat Detection Rate</h4>
+      <canvas id="threatDistributionChart" style="max-height: 250px;"></canvas>
+    </div>
+    
+  </div>
+</div>
 
+<!-- Performance Metrics -->
+<div class="card" style="margin-top: 2rem;">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">speed</span>Performance Metrics</h3>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-top: 1.5rem;">
+    
+    <!-- Hand Detection Confidence -->
+    <div>
+      <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--muted-foreground);">Hand Detection Confidence Distribution</h4>
+      <canvas id="confidenceDistributionChart" style="max-height: 250px;"></canvas>
+    </div>
+    
+    <!-- Session Duration Trends -->
+    <div>
+      <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--muted-foreground);">Session Duration History</h4>
+      <canvas id="sessionDurationChart" style="max-height: 250px;"></canvas>
+    </div>
+    
+  </div>
+</div>
 
+<!-- Incident Analysis -->
+<div class="card" style="margin-top: 2rem;">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">bar_chart</span>Incident Analysis</h3>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-top: 1.5rem;">
+    
+    <!-- Incidents per Session -->
+    <div>
+      <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--muted-foreground);">Incidents per Session</h4>
+      <canvas id="incidentsPerSessionChart" style="max-height: 250px;"></canvas>
+    </div>
+    
+    <!-- Escalation Rate -->
+    <div>
+      <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--muted-foreground);">Escalation Rate Trend</h4>
+      <canvas id="escalationRateChart" style="max-height: 250px;"></canvas>
+    </div>
+    
+  </div>
+</div>
+
+<!-- Session Detail Modal -->
+<div id="sessionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; overflow: auto;">
+  <div style="background: var(--background); margin: 2rem auto; max-width: 900px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0;"><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">video_library</span>Session Details</h3>
+      <button onclick="closeSessionModal()" style="background: none; border: none; cursor: pointer; padding: 0.5rem;">
+        <span class="material-icons" style="color: var(--muted-foreground);">close</span>
+      </button>
+    </div>
+    <div id="sessionModalContent" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
+      Loading...
+    </div>
+  </div>
+</div>
+
+<!-- Incident Detail Modal -->
+<div id="incidentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; overflow: auto;">
+  <div style="background: var(--background); margin: 2rem auto; max-width: 1100px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+    <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0;"><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">warning</span>Incident Details</h3>
+      <button onclick="closeIncidentModal()" style="background: none; border: none; cursor: pointer; padding: 0.5rem;">
+        <span class="material-icons" style="color: var(--muted-foreground);">close</span>
+      </button>
+    </div>
+    <div id="incidentModalContent" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
+      Loading...
+    </div>
+  </div>
+</div>
 
 <script>
 let isMonitoring = false;
@@ -258,6 +366,10 @@ async function refreshData() {
       document.getElementById('stopBtn').disabled = false;
       
       document.getElementById('realtimeResults').style.display = 'block';
+      document.getElementById('liveSessionStats').style.display = 'block';
+      
+      // Update live session stats
+      updateLiveSessionStats(sessionData.session);
       
       // Show current session card
       updateCurrentSessionCard(sessionData.session);
@@ -281,6 +393,7 @@ async function refreshData() {
     } else {
       document.getElementById('realtimeResults').style.display = 'none';
       document.getElementById('currentSessionCard').style.display = 'none';
+      document.getElementById('liveSessionStats').style.display = 'none';
       console.log('[v0] Not monitoring, hiding real-time results');
     }
     
@@ -440,6 +553,32 @@ function updateStreamStatus() {
   };
 }
 
+
+function updateLiveSessionStats(session) {
+  document.getElementById('liveFrameCount').textContent = session.total_frames || 0;
+  document.getElementById('liveIncidentCount').textContent = session.total_incidents || 0;
+  document.getElementById('liveEscalationCount').textContent = session.total_escalations || 0;
+  
+  const duration = session.duration_seconds || 0;
+  const durationText = duration > 60 ? `${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s` : `${Math.floor(duration)}s`;
+  document.getElementById('liveDuration').textContent = durationText;
+  
+  // Update live chart (simple timeline - just incident count)
+  if (charts.liveIncident) {
+    // Add new data point
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    charts.liveIncident.data.labels.push(now);
+    charts.liveIncident.data.datasets[0].data.push(session.total_incidents || 0);
+    
+    // Keep only last 20 data points
+    if (charts.liveIncident.data.labels.length > 20) {
+      charts.liveIncident.data.labels.shift();
+      charts.liveIncident.data.datasets[0].data.shift();
+    }
+    
+    charts.liveIncident.update('none'); // No animation for smoother updates
+  }
+}
 
 function updateCurrentSessionCard(session) {
   const card = document.getElementById('currentSessionCard');
@@ -662,15 +801,711 @@ function nextSessionPage() {
   }
 }
 
-function viewSession(sessionId) {
-  alert(`Viewing detailed session #${sessionId}\n\nThis will open a dedicated session view page.`);
-  // TODO: Navigate to session detail page
+async function viewSession(sessionId) {
+  try {
+    const modal = document.getElementById('sessionModal');
+    const content = document.getElementById('sessionModalContent');
+    
+    modal.style.display = 'block';
+    content.innerHTML = '<div style="text-align: center; padding: 2rem;">Loading...</div>';
+    
+    const response = await fetch(`/api/sessions/${sessionId}`);
+    const data = await response.json();
+    
+    if (data.error) {
+      content.innerHTML = `<div style="color: var(--danger);">Error: ${data.error}</div>`;
+      return;
+    }
+    
+    const session = data.session;
+    const duration = session.duration_seconds || 0;
+    const durationText = duration > 60 ? `${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s` : `${Math.floor(duration)}s`;
+    
+    content.innerHTML = `
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Session ID</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">#${session.id}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Duration</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">${durationText}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Total Frames</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">${session.total_frames || 0}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Incidents</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">${session.total_incidents || 0}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Escalations</div>
+          <div style="font-size: 1.5rem; font-weight: 700; color: ${session.total_escalations > 0 ? 'var(--danger)' : 'inherit'};">${session.total_escalations || 0}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Status</div>
+          <div style="font-size: 1.25rem; font-weight: 700;">
+            <span class="status ${session.is_active ? 'monitoring' : 'not-detected'}">
+              ${session.is_active ? 'Active' : 'Completed'}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 1rem;">
+        <div style="font-size: 0.875rem; color: var(--muted-foreground);">Started</div>
+        <div style="font-weight: 600;">${new Date(session.started_at).toLocaleString()}</div>
+      </div>
+      
+      ${session.ended_at ? `
+        <div style="margin-bottom: 1.5rem;">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground);">Ended</div>
+          <div style="font-weight: 600;">${new Date(session.ended_at).toLocaleString()}</div>
+        </div>
+      ` : ''}
+      
+      <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">Session Analytics</h4>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <canvas id="sessionModalIncidentTimeline" style="max-height: 200px;"></canvas>
+        </div>
+        <div>
+          <canvas id="sessionModalThreatPie" style="max-height: 200px;"></canvas>
+        </div>
+      </div>
+      
+      <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">Incidents (${(session.incidents || []).length})</h4>
+      ${(session.incidents || []).length === 0 ? 
+        '<div style="text-align: center; padding: 2rem; color: var(--muted-foreground);">No incidents recorded</div>' :
+        `<div style="display: grid; gap: 1rem;">
+          ${session.incidents.map(incident => {
+            const incidentDuration = incident.ended_at ? 
+              (new Date(incident.ended_at) - new Date(incident.started_at)) / 1000 : 
+              (Date.now() - new Date(incident.started_at).getTime()) / 1000;
+            const incidentDurationText = incidentDuration > 60 ? 
+              `${Math.floor(incidentDuration / 60)}m ${Math.floor(incidentDuration % 60)}s` : 
+              `${Math.floor(incidentDuration)}s`;
+            
+            return `
+              <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius); border: 1px solid ${incident.threat_detected ? 'var(--danger)' : 'var(--border)'};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                  <div>
+                    <strong>Incident #${incident.id}</strong>
+                    ${incident.threat_detected ? '<span class="status detected" style="margin-left: 0.5rem;">THREAT DETECTED</span>' : ''}
+                    ${incident.is_escalated ? '<span class="status detected" style="margin-left: 0.5rem;">ESCALATED</span>' : ''}
+                  </div>
+                  <button class="btn table-action-btn" onclick="viewIncident(${incident.id})" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">View Details</button>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; font-size: 0.875rem;">
+                  <div><span style="color: var(--muted-foreground);">Duration:</span> ${incidentDurationText}</div>
+                  <div><span style="color: var(--muted-foreground);">Frames:</span> ${incident.total_frames}</div>
+                  <div><span style="color: var(--muted-foreground);">Max Hands:</span> ${incident.max_hand_count}</div>
+                  <div><span style="color: var(--muted-foreground);">Confidence:</span> ${(incident.max_confidence * 100).toFixed(1)}%</div>
+                </div>
+                ${incident.threat_explanation ? `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--danger);">⚠️ ${incident.threat_explanation}</div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>`
+      }
+    `;
+    
+    // Render session modal charts
+    setTimeout(() => {
+      // Incident Timeline Chart
+      const timelineCtx = document.getElementById('sessionModalIncidentTimeline');
+      if (timelineCtx) {
+        const incidents = session.incidents || [];
+        new Chart(timelineCtx, {
+          type: 'bar',
+          data: {
+            labels: incidents.map((inc, idx) => `#${inc.id}`),
+            datasets: [{
+              label: 'Frames',
+              data: incidents.map(inc => inc.total_frames),
+              backgroundColor: incidents.map(inc => inc.threat_detected ? 'rgba(239, 68, 68, 0.6)' : 'rgba(34, 197, 94, 0.6)'),
+              borderColor: incidents.map(inc => inc.threat_detected ? 'rgb(239, 68, 68)' : 'rgb(34, 197, 94)'),
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Incident Duration (Frames)', color: '#a0aec0' }
+            },
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      }
+      
+      // Threat Pie Chart
+      const pieCtx = document.getElementById('sessionModalThreatPie');
+      if (pieCtx) {
+        const incidents = session.incidents || [];
+        const threats = incidents.filter(inc => inc.threat_detected).length;
+        const safe = incidents.length - threats;
+        
+        new Chart(pieCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Threats', 'Safe'],
+            datasets: [{
+              data: [threats, safe],
+              backgroundColor: ['rgba(239, 68, 68, 0.8)', 'rgba(34, 197, 94, 0.8)'],
+              borderColor: ['rgb(239, 68, 68)', 'rgb(34, 197, 94)'],
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#a0aec0' } },
+              title: { display: true, text: 'Threat Status', color: '#a0aec0' }
+            }
+          }
+        });
+      }
+    }, 100);
+    
+  } catch (error) {
+    console.error('Error loading session:', error);
+    content.innerHTML = `<div style="color: var(--danger);">Error loading session: ${error.message}</div>`;
+  }
 }
 
-function viewIncident(incidentId) {
-  alert(`Viewing detailed incident #${incidentId}\n\nThis will show all frames and Gemini analyses.`);
-  // TODO: Open incident modal or page
+async function viewIncident(incidentId) {
+  try {
+    const modal = document.getElementById('incidentModal');
+    const content = document.getElementById('incidentModalContent');
+    
+    modal.style.display = 'block';
+    content.innerHTML = '<div style="text-align: center; padding: 2rem;">Loading...</div>';
+    
+    const response = await fetch(`/api/incidents/${incidentId}`);
+    const data = await response.json();
+    
+    if (data.error) {
+      content.innerHTML = `<div style="color: var(--danger);">Error: ${data.error}</div>`;
+      return;
+    }
+    
+    const incident = data.incident;
+    const duration = incident.ended_at ? 
+      (new Date(incident.ended_at) - new Date(incident.started_at)) / 1000 : 
+      (Date.now() - new Date(incident.started_at).getTime()) / 1000;
+    const durationText = duration > 60 ? 
+      `${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s` : 
+      `${Math.floor(duration)}s`;
+    
+    content.innerHTML = `
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Incident ID</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">#${incident.id}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Duration</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">${durationText}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Total Frames</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">${incident.total_frames}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Max Hands</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">${incident.max_hand_count}</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Max Confidence</div>
+          <div style="font-size: 1.5rem; font-weight: 700;">${(incident.max_confidence * 100).toFixed(1)}%</div>
+        </div>
+        <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+          <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Status</div>
+          <div style="font-size: 1.25rem; font-weight: 700;">
+            ${incident.threat_detected ? '<span class="status detected">THREAT</span>' : '<span class="status not-detected">SAFE</span>'}
+          </div>
+        </div>
+      </div>
+      
+      ${incident.threat_detected ? `
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+          <div style="font-weight: 700; color: var(--danger); margin-bottom: 0.5rem;">
+            <span class="material-icons" style="vertical-align: middle; font-size: 1.2rem;">warning</span>
+            Threat Detected (${(incident.threat_confidence * 100).toFixed(1)}% confidence)
+          </div>
+          <div style="color: var(--danger);">${incident.threat_explanation || 'No explanation provided'}</div>
+        </div>
+      ` : ''}
+      
+      <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">Incident Analytics</h4>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <canvas id="incidentModalFrameTimeline" style="max-height: 200px;"></canvas>
+        </div>
+        <div>
+          <canvas id="incidentModalConfidenceChart" style="max-height: 200px;"></canvas>
+        </div>
+      </div>
+      
+      <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">Gemini Analyses (${(incident.analyses || []).length})</h4>
+      ${(incident.analyses || []).length === 0 ? 
+        '<div style="text-align: center; padding: 1rem; color: var(--muted-foreground); background: var(--muted); border-radius: var(--radius);">No Gemini analyses performed</div>' :
+        `<div style="display: grid; gap: 1rem; margin-bottom: 1.5rem;">
+          ${incident.analyses.map((analysis, idx) => `
+            <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius); border-left: 3px solid ${analysis.threat_detected ? 'var(--danger)' : 'var(--success)'};">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <strong>Analysis #${idx + 1}</strong>
+                ${analysis.threat_detected ? '<span class="status detected">THREAT</span>' : '<span class="status not-detected">SAFE</span>'}
+              </div>
+              <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">
+                <span style="color: var(--muted-foreground);">Frames:</span> ${analysis.frame_start} - ${analysis.frame_end} (${analysis.total_frames_analyzed} frames)
+              </div>
+              <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">
+                <span style="color: var(--muted-foreground);">Confidence:</span> ${(analysis.confidence * 100).toFixed(1)}% | 
+                <span style="color: var(--muted-foreground);">Latency:</span> ${analysis.api_latency_ms}ms
+              </div>
+              ${analysis.explanation ? `<div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--background); border-radius: var(--radius); font-size: 0.875rem;">${analysis.explanation}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>`
+      }
+      
+      <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">Frames (${(incident.frames || []).length})</h4>
+      ${(incident.frames || []).length === 0 ? 
+        '<div style="text-align: center; padding: 1rem; color: var(--muted-foreground); background: var(--muted); border-radius: var(--radius);">No frames recorded</div>' :
+        `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;">
+          ${incident.frames.slice(0, 50).map(frame => `
+            <div style="background: var(--muted); padding: 0.5rem; border-radius: var(--radius); text-align: center; font-size: 0.75rem;">
+              <div style="font-weight: 600; margin-bottom: 0.25rem;">Frame #${frame.frame_number}</div>
+              <div style="color: var(--muted-foreground);">${frame.hand_count} hand${frame.hand_count !== 1 ? 's' : ''}</div>
+              <div style="color: var(--muted-foreground);">${(frame.hand_confidence * 100).toFixed(0)}%</div>
+            </div>
+          `).join('')}
+          ${incident.frames.length > 50 ? `<div style="grid-column: 1 / -1; text-align: center; padding: 0.5rem; color: var(--muted-foreground);">... and ${incident.frames.length - 50} more frames</div>` : ''}
+        </div>`
+      }
+      
+      ${(incident.alerts || []).length > 0 ? `
+        <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">Alerts (${incident.alerts.length})</h4>
+        <div style="display: grid; gap: 0.5rem;">
+          ${incident.alerts.map(alert => `
+            <div style="background: var(--muted); padding: 0.75rem; border-radius: var(--radius); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>${alert.alert_type}</strong>
+                <div style="font-size: 0.875rem; color: var(--muted-foreground);">${new Date(alert.sent_at).toLocaleString()}</div>
+                ${alert.message ? `<div style="font-size: 0.875rem; margin-top: 0.25rem;">${alert.message}</div>` : ''}
+              </div>
+              <div style="text-align: right; font-size: 0.75rem;">
+                ${alert.audio_played ? '<span class="status detected">Audio</span>' : ''}
+                ${alert.notification_sent ? '<span class="status detected">Notif</span>' : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
+    
+    // Render incident modal charts
+    setTimeout(() => {
+      // Frame Timeline Chart (hand count over time)
+      const frameCtx = document.getElementById('incidentModalFrameTimeline');
+      if (frameCtx) {
+        const frames = incident.frames || [];
+        const displayFrames = frames.slice(0, 50); // Show first 50 frames
+        
+        new Chart(frameCtx, {
+          type: 'line',
+          data: {
+            labels: displayFrames.map(f => `#${f.frame_number}`),
+            datasets: [{
+              label: 'Hand Count',
+              data: displayFrames.map(f => f.hand_count),
+              borderColor: 'rgb(59, 130, 246)',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Hand Detection Over Time', color: '#a0aec0' }
+            },
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+          }
+        });
+      }
+      
+      // Confidence Distribution Chart
+      const confCtx = document.getElementById('incidentModalConfidenceChart');
+      if (confCtx) {
+        const frames = incident.frames || [];
+        
+        new Chart(confCtx, {
+          type: 'line',
+          data: {
+            labels: frames.slice(0, 50).map(f => `#${f.frame_number}`),
+            datasets: [{
+              label: 'Confidence',
+              data: frames.slice(0, 50).map(f => (f.hand_confidence * 100).toFixed(1)),
+              borderColor: 'rgb(168, 85, 247)',
+              backgroundColor: 'rgba(168, 85, 247, 0.1)',
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Detection Confidence Over Time', color: '#a0aec0' }
+            },
+            scales: {
+              y: { min: 0, max: 100, ticks: { callback: (value) => value + '%' } }
+            }
+          }
+        });
+      }
+    }, 100);
+    
+  } catch (error) {
+    console.error('Error loading incident:', error);
+    content.innerHTML = `<div style="color: var(--danger);">Error loading incident: ${error.message}</div>`;
+  }
 }
+
+function closeSessionModal() {
+  document.getElementById('sessionModal').style.display = 'none';
+}
+
+function closeIncidentModal() {
+  document.getElementById('incidentModal').style.display = 'none';
+}
+
+// Close modals when clicking outside
+document.addEventListener('click', function(event) {
+  const sessionModal = document.getElementById('sessionModal');
+  const incidentModal = document.getElementById('incidentModal');
+  
+  if (event.target === sessionModal) {
+    closeSessionModal();
+  }
+  if (event.target === incidentModal) {
+    closeIncidentModal();
+  }
+});
+
+// Chart.js Configuration
+Chart.defaults.color = '#a0aec0';
+Chart.defaults.borderColor = '#2d3748';
+Chart.defaults.font.family = 'Roboto Mono';
+
+let charts = {};
+
+function initCharts() {
+  // Live Session Incident Chart
+  const liveCtx = document.getElementById('liveIncidentChart');
+  charts.liveIncident = new Chart(liveCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Incidents Over Time',
+        data: [],
+        borderColor: 'rgb(251, 146, 60)',
+        backgroundColor: 'rgba(251, 146, 60, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+  
+  // Detection Timeline Chart
+  const detectionCtx = document.getElementById('detectionTimelineChart');
+  charts.detectionTimeline = new Chart(detectionCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Incidents',
+        data: [],
+        borderColor: 'rgb(239, 68, 68)',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+
+  // Threat Distribution Chart (Doughnut)
+  const threatCtx = document.getElementById('threatDistributionChart');
+  charts.threatDistribution = new Chart(threatCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Threats Detected', 'Safe Incidents', 'Pending Analysis'],
+      datasets: [{
+        data: [0, 0, 0],
+        backgroundColor: [
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(34, 197, 94, 0.8)',
+          'rgba(251, 191, 36, 0.8)'
+        ],
+        borderColor: [
+          'rgb(239, 68, 68)',
+          'rgb(34, 197, 94)',
+          'rgb(251, 191, 36)'
+        ],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+
+  // Confidence Distribution Chart (Bar)
+  const confidenceCtx = document.getElementById('confidenceDistributionChart');
+  charts.confidenceDistribution = new Chart(confidenceCtx, {
+    type: 'bar',
+    data: {
+      labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'],
+      datasets: [{
+        label: 'Detection Count',
+        data: [0, 0, 0, 0, 0],
+        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+        borderColor: 'rgb(59, 130, 246)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+
+  // Session Duration Chart (Line)
+  const durationCtx = document.getElementById('sessionDurationChart');
+  charts.sessionDuration = new Chart(durationCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Duration (seconds)',
+        data: [],
+        borderColor: 'rgb(168, 85, 247)',
+        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+
+  // Incidents per Session Chart (Bar)
+  const incidentsCtx = document.getElementById('incidentsPerSessionChart');
+  charts.incidentsPerSession = new Chart(incidentsCtx, {
+    type: 'bar',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Incidents',
+        data: [],
+        backgroundColor: 'rgba(251, 146, 60, 0.6)',
+        borderColor: 'rgb(251, 146, 60)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+
+  // Escalation Rate Chart (Line)
+  const escalationCtx = document.getElementById('escalationRateChart');
+  charts.escalationRate = new Chart(escalationCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Escalations',
+        data: [],
+        borderColor: 'rgb(239, 68, 68)',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+}
+
+async function updateCharts() {
+  try {
+    const response = await fetch('/api/sessions');
+    const data = await response.json();
+    const sessions = data.sessions || [];
+    
+    if (sessions.length === 0) return;
+    
+    // Sort by date
+    sessions.sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
+    
+    // Last 10 sessions for timeline
+    const recentSessions = sessions.slice(-10);
+    
+    // Detection Timeline
+    charts.detectionTimeline.data.labels = recentSessions.map(s => 
+      new Date(s.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
+    charts.detectionTimeline.data.datasets[0].data = recentSessions.map(s => s.total_incidents || 0);
+    charts.detectionTimeline.update();
+    
+    // Threat Distribution
+    let threatsDetected = 0;
+    let safeIncidents = 0;
+    let pendingAnalysis = 0;
+    
+    for (const session of sessions) {
+      // Fetch detailed session data to check incidents
+      try {
+        const sessionResponse = await fetch(`/api/sessions/${session.id}`);
+        const sessionData = await sessionResponse.json();
+        const incidents = sessionData.session.incidents || [];
+        
+        for (const incident of incidents) {
+          if (incident.threat_detected) {
+            threatsDetected++;
+          } else if (incident.gemini_analyzed) {
+            safeIncidents++;
+          } else {
+            pendingAnalysis++;
+          }
+        }
+      } catch (e) {
+        // Skip if error fetching session details
+      }
+    }
+    
+    charts.threatDistribution.data.datasets[0].data = [threatsDetected, safeIncidents, pendingAnalysis];
+    charts.threatDistribution.update();
+    
+    // Confidence Distribution
+    const confidenceBuckets = [0, 0, 0, 0, 0];
+    for (const session of sessions) {
+      try {
+        const sessionResponse = await fetch(`/api/sessions/${session.id}`);
+        const sessionData = await sessionResponse.json();
+        const incidents = sessionData.session.incidents || [];
+        
+        for (const incident of incidents) {
+          const conf = incident.max_confidence * 100;
+          if (conf < 20) confidenceBuckets[0]++;
+          else if (conf < 40) confidenceBuckets[1]++;
+          else if (conf < 60) confidenceBuckets[2]++;
+          else if (conf < 80) confidenceBuckets[3]++;
+          else confidenceBuckets[4]++;
+        }
+      } catch (e) {
+        // Skip if error
+      }
+    }
+    charts.confidenceDistribution.data.datasets[0].data = confidenceBuckets;
+    charts.confidenceDistribution.update();
+    
+    // Session Duration
+    charts.sessionDuration.data.labels = recentSessions.map(s => 
+      `#${s.id}`
+    );
+    charts.sessionDuration.data.datasets[0].data = recentSessions.map(s => s.duration_seconds || 0);
+    charts.sessionDuration.update();
+    
+    // Incidents per Session
+    charts.incidentsPerSession.data.labels = recentSessions.map(s => `#${s.id}`);
+    charts.incidentsPerSession.data.datasets[0].data = recentSessions.map(s => s.total_incidents || 0);
+    charts.incidentsPerSession.update();
+    
+    // Escalation Rate
+    charts.escalationRate.data.labels = recentSessions.map(s => `#${s.id}`);
+    charts.escalationRate.data.datasets[0].data = recentSessions.map(s => s.total_escalations || 0);
+    charts.escalationRate.update();
+    
+  } catch (error) {
+    console.error('Error updating charts:', error);
+  }
+}
+
+// Initialize charts on page load
+initCharts();
+updateCharts();
+
+// Update charts every 10 seconds
+setInterval(updateCharts, 10000);
 
 setInterval(refreshData, 2000);
 

@@ -158,12 +158,20 @@ def detection_processing_worker():
                 
                 # INCIDENT TRACKING LOGIC (only when monitoring is active)
                 if is_monitoring and current_session_id:
-                    with app.app_context():
-                        # Increment session frame count
-                        SessionManager.increment_frame_count(current_session_id)
-                        global_frame_count += 1
-                        
-                        if has_hand and detections:
+                    # Increment frame count (no DB operation needed here)
+                    global_frame_count += 1
+                    
+                    # Only do DB operations every 4th frame to reduce lag
+                    if global_frame_count % 4 == 0:
+                        with app.app_context():
+                            # Batch update session frame count every 4 frames
+                            session = Session.query.get(current_session_id)
+                            if session:
+                                session.total_frames = global_frame_count
+                                db.session.commit()
+                    
+                    if has_hand and detections:
+                        with app.app_context():
                             # Hands detected!
                             if not current_incident_id:
                                 # Create new incident
@@ -171,14 +179,15 @@ def detection_processing_worker():
                                 current_incident_id = incident.id
                                 print(f"🆕 NEW INCIDENT #{current_incident_id} - Hands first detected")
                             
-                            # Add frame to incident
+                            # Add frame to incident (save every 4th frame to reduce lag)
+                            should_save_frame = (global_frame_count % 4 == 0)
                             incident_frame, should_escalate = IncidentManager.add_frame_to_incident(
                                 incident_id=current_incident_id,
                                 global_frame_num=global_frame_count,
                                 hand_count=len(detections),
                                 hand_confidence=confidence,
                                 hand_detections=detections,
-                                frame_image=frame  # Store frame image
+                                frame_image=frame if should_save_frame else None  # Only save every 4th frame
                             )
                             
                             # Check if we should send batch to Gemini (every 10 frames: 10, 20, 30...)
@@ -203,66 +212,83 @@ def detection_processing_worker():
                                         images_for_gemini.append(img)
                                 
                                 if images_for_gemini:
-                                    print(f"🤖 Sending {len(images_for_gemini)} frames to Gemini (batch #{batch_num})...")
-                                    start_time = time.time()
+                                    # Skip Gemini for now if there's already a pending analysis (avoid queueing)
+                                    print(f"⚡ Queueing Gemini analysis for batch #{batch_num} (non-blocking)...")
                                     
-                                    # Call Gemini API
-                                    is_theft, threat_confidence, explanation = gemini_analyzer.analyze_theft_attempt(images_for_gemini)
-                                    
-                                    latency_ms = int((time.time() - start_time) * 1000)
-                                    print(f"🤖 Gemini response: Threat={is_theft}, Confidence={threat_confidence}%, Latency={latency_ms}ms")
-                                    
-                                    # Record analysis in database
-                                    GeminiAnalysisManager.record_analysis(
-                                        incident_id=current_incident_id,
-                                        frame_start=frames_for_analysis[0].frame_number,
-                                        frame_end=frames_for_analysis[-1].frame_number,
-                                        threat_detected=is_theft,
-                                        confidence=threat_confidence,
-                                        explanation=explanation,
-                                        latency_ms=latency_ms
-                                    )
-                                    
-                                    # If real threat detected, END THE INCIDENT
-                                    if is_theft and threat_confidence > 60:
-                                        print(f"🚨 THREAT CONFIRMED! Ending incident and sending alert...")
-                                        
-                                        # Mark entire incident as high threat
-                                        incident.threat_detected = True
-                                        incident.threat_confidence = threat_confidence
-                                        incident.threat_explanation = explanation
-                                        db.session.commit()
-                                        
-                                        # Send alert
-                                        AlertManager.send_alert(
-                                            incident_id=current_incident_id,
-                                            alert_type='theft_confirmed',
-                                            message=f"Potential theft detected: {explanation}",
-                                            audio_played=False,
-                                            notification_sent=True
-                                        )
-                                        
-                                        # Trigger audio alert
+                                    # Run Gemini analysis in background thread to avoid blocking
+                                    def analyze_in_background(inc_id, imgs, batch, frames_list):
                                         try:
-                                            audio_notifier.send_alert(threat_confidence, explanation)
-                                            print(f"🔊 Audio alert sent")
+                                            print(f"🤖 [BG] Analyzing {len(imgs)} frames (batch #{batch})...")
+                                            start_time = time.time()
+                                            
+                                            # Call Gemini API
+                                            is_theft, threat_confidence, explanation = gemini_analyzer.analyze_theft_attempt(imgs)
+                                            
+                                            latency_ms = int((time.time() - start_time) * 1000)
+                                            print(f"🤖 [BG] Gemini response: Threat={is_theft}, Confidence={threat_confidence}%, Latency={latency_ms}ms")
+                                            
+                                            # Record analysis in database
+                                            with app.app_context():
+                                                GeminiAnalysisManager.record_analysis(
+                                                    incident_id=inc_id,
+                                                    frame_start=frames_list[0].frame_number,
+                                                    frame_end=frames_list[-1].frame_number,
+                                                    threat_detected=is_theft,
+                                                    confidence=threat_confidence,
+                                                    explanation=explanation,
+                                                    latency_ms=latency_ms
+                                                )
+                                                
+                                                # If real threat detected, END THE INCIDENT
+                                                if is_theft and threat_confidence > 60:
+                                                    print(f"🚨 [BG] THREAT CONFIRMED! Ending incident and sending alert...")
+                                                    
+                                                    # Mark entire incident as high threat
+                                                    incident_obj = Incident.query.get(inc_id)
+                                                    if incident_obj:
+                                                        incident_obj.threat_detected = True
+                                                        incident_obj.threat_confidence = threat_confidence
+                                                        incident_obj.threat_explanation = explanation
+                                                        db.session.commit()
+                                                    
+                                                    # Send alert
+                                                    AlertManager.send_alert(
+                                                        incident_id=inc_id,
+                                                        alert_type='theft_confirmed',
+                                                        message=f"Potential theft detected: {explanation}",
+                                                        audio_played=False,
+                                                        notification_sent=True
+                                                    )
+                                                    
+                                                    # Trigger audio alert
+                                                    try:
+                                                        audio_notifier.send_alert(threat_confidence, explanation)
+                                                        print(f"🔊 [BG] Audio alert sent")
+                                                    except Exception as e:
+                                                        print(f"❌ [BG] Audio alert failed: {e}")
+                                                    
+                                                    # END THE INCIDENT (threat detected by Gemini)
+                                                    IncidentManager.end_incident(inc_id)
+                                                    print(f"🛑 [BG] INCIDENT #{inc_id} ENDED - Threat confirmed by Gemini")
+                                                else:
+                                                    print(f"✅ [BG] No threat in batch #{batch} (Confidence: {threat_confidence}%)")
                                         except Exception as e:
-                                            print(f"❌ Audio alert failed: {e}")
-                                        
-                                        # END THE INCIDENT (threat detected by Gemini)
-                                        IncidentManager.end_incident(current_incident_id)
-                                        print(f"🛑 INCIDENT #{current_incident_id} ENDED - Threat confirmed by Gemini")
-                                        current_incident_id = None
-                                    else:
-                                        print(f"✅ No threat in batch #{batch_num} (Confidence: {threat_confidence}%)")
-                                        print(f"   Incident continues - will analyze again at frame {incident.total_frames + 10}...")
-                        else:
-                            # No hands detected
-                            if current_incident_id:
+                                            print(f"❌ [BG] Gemini analysis error: {e}")
+                                    
+                                    # Start analysis in background thread (non-blocking)
+                                    threading.Thread(
+                                        target=analyze_in_background, 
+                                        args=(current_incident_id, images_for_gemini, batch_num, frames_for_analysis),
+                                        daemon=True
+                                    ).start()
+                    else:
+                        # No hands detected
+                        if current_incident_id:
+                            with app.app_context():
                                 # End the current incident
                                 IncidentManager.end_incident(current_incident_id)
                                 print(f"✅ INCIDENT #{current_incident_id} ENDED - No hands detected")
-                                current_incident_id = None
+                            current_incident_id = None
                 
                 # Update visualization
                 if has_hand and detections:
