@@ -1,94 +1,145 @@
 {% extends 'layout.html' %}
 
-{% block title %}Live Monitor - M.O.N.K.Y{% endblock %}
+{% block title %}Live Monitor{% endblock %}
 
 {% block content %}
 <div class="card">
-  <h2>🛡️ Live Monitoring System</h2>
-  <p style="color: var(--muted-foreground);">AI-powered theft detection with Gemini, YOLO, and ElevenLabs</p>
+  <h2><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">shield</span>Live Monitoring System</h2>
+  <p style="color: var(--muted-foreground);">AI-powered security detection with real-time analysis</p>
 </div>
 
-<div class="card">
-  <h3>Monitoring Controls</h3>
-  <div class="controls">
-    <button id="startBtn" onclick="startMonitoring()">Start Monitoring</button>
-    <button id="stopBtn" onclick="stopMonitoring()" class="danger">Stop Monitoring</button>
-    <button onclick="refreshData()">Refresh Data</button>
-    <button onclick="testIncident()" class="success">Test Incident</button>
-    <button onclick="testHandDetection()" class="info">Test Hand Detection</button>
-    <button onclick="testGemini()" class="info">Test Gemini</button>
-    <button onclick="testAudio()" class="info">Test Audio</button>
-    <div id="status" class="status stopped">Status: Stopped</div>
+<!-- Force horizontal layout with flexbox -->
+<div style="display: flex !important; flex-direction: row !important; gap: 2rem !important; margin-bottom: 2rem !important; width: 100% !important;">
+  
+  <!-- Left Side: Monitoring Controls -->
+  <div style="flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 1.5rem !important; min-width: 0 !important;">
+    <div class="card">
+      <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">settings</span>Monitoring Controls</h3>
+      <div class="controls">
+        <button id="startBtn" onclick="startMonitoring()">Start Monitoring</button>
+        <button id="stopBtn" onclick="stopMonitoring()" class="danger">Stop Monitoring</button>
+        <button onclick="refreshData()">Refresh Data</button>
+        <button onclick="testIncident()" class="success">Test Incident</button>
+        <button onclick="testHandDetection()" class="info">Test Hand Detection</button>
+        <button onclick="testGemini()" class="info">Test Gemini</button>
+        <button onclick="testAudio()" class="info">Test Audio</button>
+        <div id="status" class="status stopped">Status: Stopped</div>
+      </div>
+    </div>
+
+    <div class="realtime-results" id="realtimeResults" style="display: none;">
+      <h3>Real-Time Analysis Results</h3>
+      <div class="result-card">
+        <div class="result-header">
+          <span id="photoCount">Photo #0</span>
+          <span id="resultTimestamp">--:--:--</span>
+        </div>
+        <div class="result-content">
+          <div class="result-item">
+            <span class="label">Hand Detection:</span>
+            <span id="handDetection" class="status unknown">Unknown</span>
+          </div>
+          <div class="result-item">
+            <span class="label">Hand Count:</span>
+            <span id="handCount">0</span>
+          </div>
+          <div class="result-item">
+            <span class="label">Hand Confidence:</span>
+            <span id="handConfidence">0%</span>
+          </div>
+          <div class="result-item">
+            <span class="label">Hand Positions:</span>
+            <span id="handPositions">None</span>
+          </div>
+          <div class="result-item">
+            <span class="label">Theft Analysis:</span>
+            <span id="theftAnalysis" class="status unknown">Unknown</span>
+          </div>
+          <div class="result-item">
+            <span class="label">Theft Confidence:</span>
+            <span id="theftConfidence">0%</span>
+          </div>
+          <div class="result-item">
+            <span class="label">Explanation:</span>
+            <span id="explanation">No analysis yet</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 
-<div class="card video-container">
-  <h3>🎯 Live YOLO Detection Stream</h3>
-  <div id="yoloFeed">
-    <img id="yoloStream" src="/yolo_stream" alt="YOLO Detection Feed">
-    <canvas id="detectionOverlay"></canvas>
-    <div id="streamStatus">
-      <span id="streamIndicator" class="status not-detected">Stream: Loading...</span>
+  <!-- Right Side: Video Stream -->
+  <div style="flex: 1 !important; display: flex !important; flex-direction: column !important; min-width: 0 !important;">
+    <div class="card video-container">
+      <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">videocam</span>Live Detection Stream</h3>
+      <div id="detectionFeed">
+        <img id="detectionStream" src="/detection_stream" alt="Hand Detection Feed">
+        <canvas id="detectionOverlay"></canvas>
+        <div id="streamStatus">
+          <span id="streamIndicator" class="status not-detected">Stream: Loading...</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<div class="realtime-results" id="realtimeResults" style="display: none;">
-  <h3>Real-Time Analysis Results</h3>
-  <div class="result-card">
-    <div class="result-header">
-      <span id="photoCount">Photo #0</span>
-      <span id="resultTimestamp">--:--:--</span>
-    </div>
-    <div class="result-content">
-      <div class="result-item">
-        <span class="label">Hand Detection:</span>
-        <span id="handDetection" class="status unknown">Unknown</span>
-      </div>
-      <div class="result-item">
-        <span class="label">Hand Count:</span>
-        <span id="handCount">0</span>
-      </div>
-      <div class="result-item">
-        <span class="label">Hand Confidence:</span>
-        <span id="handConfidence">0%</span>
-      </div>
-      <div class="result-item">
-        <span class="label">Hand Positions:</span>
-        <span id="handPositions">None</span>
-      </div>
-      <div class="result-item">
-        <span class="label">Theft Analysis:</span>
-        <span id="theftAnalysis" class="status unknown">Unknown</span>
-      </div>
-      <div class="result-item">
-        <span class="label">Theft Confidence:</span>
-        <span id="theftConfidence">0%</span>
-      </div>
-      <div class="result-item">
-        <span class="label">Explanation:</span>
-        <span id="explanation">No analysis yet</span>
-      </div>
-    </div>
+<!-- Current Session Info -->
+<div class="card" id="currentSessionCard" style="display: none;">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">video_library</span>Current Session</h3>
+  <div id="currentSessionInfo" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+    <!-- Session info will be populated by JavaScript -->
   </div>
 </div>
 
-<div class="debug-info">
-  <h4>🔍 Debug Information</h4>
-  <div id="debugStatus">
-    <p><strong>Dashboard Updates:</strong> Every 5 seconds</p>
-    <p><strong>Photo Frequency:</strong> Every 1 second (when monitoring)</p>
-    <p><strong>Last Update:</strong> <span id="lastUpdateTime">Never</span></p>
-    <p><strong>API Status:</strong> <span id="apiStatus">Unknown</span></p>
+<!-- Sessions & Incidents Table -->
+<div class="card audit-section">
+  <h3><span class="material-icons" style="vertical-align: middle; margin-right: 0.5rem;">assessment</span>Sessions & Incidents</h3>
+  <div class="table-controls">
+    <div class="table-filters">
+      <select id="sessionFilter" onchange="filterSessions()">
+        <option value="">All Sessions</option>
+        <option value="active">Active</option>
+        <option value="completed">Completed</option>
+      </select>
+      <select id="threatFilter" onchange="filterSessions()">
+        <option value="">All Threats</option>
+        <option value="threat">Threat Detected</option>
+        <option value="safe">Safe</option>
+      </select>
+      <input type="date" id="dateFilter" onchange="filterSessions()" placeholder="Filter by date">
+    </div>
+    <div class="table-actions">
+      <button onclick="refreshSessions()" class="btn">Refresh</button>
+    </div>
+  </div>
+  <div class="table-container">
+    <table id="sessionsTable" class="audit-table">
+      <thead>
+        <tr>
+          <th>Session ID</th>
+          <th>Started</th>
+          <th>Duration</th>
+          <th>Frames</th>
+          <th>Incidents</th>
+          <th>Escalations</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="sessionsTableBody">
+        <!-- Session rows will be populated by JavaScript -->
+      </tbody>
+    </table>
+  </div>
+  <div class="table-pagination">
+    <button onclick="previousSessionPage()" id="sessionPrevBtn" disabled>Previous</button>
+    <span id="sessionPageInfo">Page 1 of 1</span>
+    <button onclick="nextSessionPage()" id="sessionNextBtn" disabled>Next</button>
   </div>
 </div>
 
-<div class="card">
-  <h3>Recent Incidents</h3>
-  <div id="incidentsList">
-    <p>No incidents recorded yet.</p>
-  </div>
-</div>
+
+
 
 <script>
 let isMonitoring = false;
@@ -196,13 +247,6 @@ async function refreshData() {
   try {
     console.log('[v0] Refreshing dashboard data...');
     
-    document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
-    document.getElementById('apiStatus').textContent = 'Fetching...';
-    
-    const incidentsResponse = await fetch('/api/incidents');
-    const incidentsData = await incidentsResponse.json();
-    displayIncidents(incidentsData.incidents);
-
     const sessionResponse = await fetch('/api/session');
     const sessionData = await sessionResponse.json();
     console.log('[v0] Session data:', sessionData);
@@ -214,6 +258,9 @@ async function refreshData() {
       document.getElementById('stopBtn').disabled = false;
       
       document.getElementById('realtimeResults').style.display = 'block';
+      
+      // Show current session card
+      updateCurrentSessionCard(sessionData.session);
       
       console.log('[v0] Fetching latest results...');
       const resultsResponse = await fetch('/api/latest_results');
@@ -227,20 +274,20 @@ async function refreshData() {
       console.log('[v0] Hand detection data:', handData);
       updateHandDetectionDisplay(handData);
       
-      console.log('[v0] Fetching YOLO visualized image...');
+      console.log('[v0] Fetching detection visualized image...');
       const imageResponse = await fetch('/api/visualized_image');
       const imageData = await imageResponse.json();
       updateYOLOFeed(imageData);
-      
-      document.getElementById('apiStatus').textContent = 'Connected';
     } else {
       document.getElementById('realtimeResults').style.display = 'none';
+      document.getElementById('currentSessionCard').style.display = 'none';
       console.log('[v0] Not monitoring, hiding real-time results');
-      document.getElementById('apiStatus').textContent = 'Not monitoring';
     }
+    
+    // Always refresh sessions table
+    refreshSessions();
   } catch (error) {
     console.error('[v0] Error refreshing data:', error);
-    document.getElementById('apiStatus').textContent = 'Error: ' + error.message;
   }
 }
 
@@ -343,7 +390,7 @@ function updateHandDetectionDisplay(handData) {
 
 function drawDetectionBoxes(handData) {
   const canvas = document.getElementById('detectionOverlay');
-  const img = document.getElementById('yoloStream');
+  const img = document.getElementById('detectionStream');
   const ctx = canvas.getContext('2d');
   
   canvas.width = img.clientWidth;
@@ -378,54 +425,283 @@ function drawDetectionBoxes(handData) {
 
 function updateStreamStatus() {
   const streamIndicator = document.getElementById('streamIndicator');
-  const yoloStream = document.getElementById('yoloStream');
+  const detectionStream = document.getElementById('detectionStream');
   
-  yoloStream.onload = function() {
+  detectionStream.onload = function() {
     streamIndicator.textContent = 'Stream: Active';
     streamIndicator.className = 'status detected';
-    console.log('[v0] YOLO stream loaded successfully');
+    console.log('[v0] Detection stream loaded successfully');
   };
   
-  yoloStream.onerror = function() {
+  detectionStream.onerror = function() {
     streamIndicator.textContent = 'Stream: Error';
     streamIndicator.className = 'status unknown';
-    console.log('[v0] YOLO stream failed to load');
+    console.log('[v0] Detection stream failed to load');
   };
 }
 
-function displayIncidents(incidents) {
-  const incidentsList = document.getElementById('incidentsList');
+
+function updateCurrentSessionCard(session) {
+  const card = document.getElementById('currentSessionCard');
+  const info = document.getElementById('currentSessionInfo');
   
-  if (incidents.length === 0) {
-    incidentsList.innerHTML = '<p>No incidents recorded yet.</p>';
+  if (!session || !session.is_active) {
+    card.style.display = 'none';
     return;
   }
+  
+  card.style.display = 'block';
+  
+  const duration = session.duration_seconds || 0;
+  const durationText = duration > 60 ? `${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s` : `${Math.floor(duration)}s`;
+  
+  info.innerHTML = `
+    <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+      <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Session ID</div>
+      <div style="font-size: 1.5rem; font-weight: 700;">#${session.id}</div>
+    </div>
+    <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+      <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Duration</div>
+      <div style="font-size: 1.5rem; font-weight: 700;">${durationText}</div>
+    </div>
+    <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+      <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Total Frames</div>
+      <div style="font-size: 1.5rem; font-weight: 700;">${session.total_frames || 0}</div>
+    </div>
+    <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+      <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Incidents</div>
+      <div style="font-size: 1.5rem; font-weight: 700;">${session.total_incidents || 0}</div>
+    </div>
+    <div style="background: var(--muted); padding: 1rem; border-radius: var(--radius);">
+      <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.25rem;">Escalations</div>
+      <div style="font-size: 1.5rem; font-weight: 700; color: ${session.total_escalations > 0 ? 'var(--danger)' : 'inherit'};">${session.total_escalations || 0}</div>
+    </div>
+  `;
+}
 
-  let html = '';
-  incidents.forEach(incident => {
-    const confidence = Math.round(incident.confidence);
-    const timestamp = new Date(incident.timestamp).toLocaleString();
-    let confidenceClass = 'low-confidence';
+let allSessions = [];
+let filteredSessions = [];
+let currentSessionPage = 1;
+const sessionsPerPage = 10;
+let expandedSessions = new Set();
+
+async function refreshSessions() {
+  try {
+    const response = await fetch('/api/sessions');
+    const data = await response.json();
+    allSessions = data.sessions || [];
+    filterSessions();
+  } catch (error) {
+    console.error('Error fetching sessions:', error);
+  }
+}
+
+function filterSessions() {
+  const sessionFilter = document.getElementById('sessionFilter')?.value;
+  const threatFilter = document.getElementById('threatFilter')?.value;
+  const dateFilter = document.getElementById('dateFilter')?.value;
+  
+  filteredSessions = allSessions.filter(session => {
+    let matches = true;
     
-    if (confidence >= 80) confidenceClass = 'high-confidence';
-    else if (confidence >= 60) confidenceClass = 'medium-confidence';
-
-    html += `
-      <div class="incident-item ${confidenceClass}">
-        <h4>🚨 Security Alert - ${confidence}% Confidence</h4>
-        <p><strong>Time:</strong> ${timestamp}</p>
-        <p><strong>Explanation:</strong> ${incident.explanation || 'No details available'}</p>
-        <p><strong>Status:</strong> ${incident.resolved ? 'Resolved' : 'Active'}</p>
-      </div>
-    `;
+    if (sessionFilter === 'active' && !session.is_active) matches = false;
+    if (sessionFilter === 'completed' && session.is_active) matches = false;
+    
+    if (dateFilter && session.started_at) {
+      const sessionDate = new Date(session.started_at).toISOString().split('T')[0];
+      if (sessionDate !== dateFilter) matches = false;
+    }
+    
+    return matches;
   });
+  
+  currentSessionPage = 1;
+  renderSessions();
+}
 
-  incidentsList.innerHTML = html;
+function renderSessions() {
+  const tbody = document.getElementById('sessionsTableBody');
+  if (!tbody) return;
+  
+  const startIndex = (currentSessionPage - 1) * sessionsPerPage;
+  const endIndex = startIndex + sessionsPerPage;
+  const pageData = filteredSessions.slice(startIndex, endIndex);
+  
+  if (pageData.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align: center; padding: 2rem; color: var(--muted-foreground);">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+            <span class="material-icons" style="font-size: 3rem; opacity: 0.5;">history</span>
+            <div style="font-size: 1.2rem; font-weight: 600;">No sessions yet</div>
+            <div>Start monitoring to create your first session</div>
+          </div>
+        </td>
+      </tr>
+    `;
+  } else {
+    tbody.innerHTML = pageData.map(session => {
+      const duration = session.duration_seconds || 0;
+      const durationText = duration > 60 ? `${Math.floor(duration / 60)}m` : `${Math.floor(duration)}s`;
+      const isExpanded = expandedSessions.has(session.id);
+      
+      return `
+        <tr class="session-row" onclick="toggleSession(${session.id})" style="cursor: pointer;">
+          <td>
+            <span class="material-icons" style="font-size: 1rem; vertical-align: middle; margin-right: 0.25rem;">${isExpanded ? 'expand_more' : 'chevron_right'}</span>
+            <strong>#${session.id}</strong>
+          </td>
+          <td>${new Date(session.started_at).toLocaleString()}</td>
+          <td>${durationText}</td>
+          <td>${session.total_frames || 0}</td>
+          <td>${session.total_incidents || 0}</td>
+          <td>
+            <span class="status ${session.total_escalations > 0 ? 'detected' : 'not-detected'}">
+              ${session.total_escalations || 0}
+            </span>
+          </td>
+          <td>
+            <span class="status ${session.is_active ? 'monitoring' : 'not-detected'}">
+              ${session.is_active ? 'Active' : 'Completed'}
+            </span>
+          </td>
+          <td onclick="event.stopPropagation();">
+            <button class="btn table-action-btn" onclick="viewSession(${session.id})">View</button>
+          </td>
+        </tr>
+        ${isExpanded ? `<tr id="session-${session.id}-incidents" class="incidents-row"><td colspan="8"><div class="incidents-container" style="padding: 1rem; background: var(--muted); border-radius: var(--radius);"><div style="text-align: center; color: var(--muted-foreground);">Loading incidents...</div></div></td></tr>` : ''}
+      `;
+    }).join('');
+  }
+  
+  updateSessionPagination();
+}
+
+async function toggleSession(sessionId) {
+  if (expandedSessions.has(sessionId)) {
+    expandedSessions.delete(sessionId);
+  } else {
+    expandedSessions.add(sessionId);
+    await loadSessionIncidents(sessionId);
+  }
+  renderSessions();
+}
+
+async function loadSessionIncidents(sessionId) {
+  try {
+    const response = await fetch(`/api/sessions/${sessionId}`);
+    const data = await response.json();
+    const incidents = data.session.incidents || [];
+    
+    // Wait for the row to be rendered
+    setTimeout(() => {
+      const container = document.querySelector(`#session-${sessionId}-incidents .incidents-container`);
+      if (!container) return;
+      
+      if (incidents.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: var(--muted-foreground);">No incidents in this session</div>';
+      } else {
+        container.innerHTML = `
+          <div style="font-weight: 600; margin-bottom: 0.5rem;">Incidents (${incidents.length})</div>
+          <div style="display: grid; gap: 0.5rem;">
+            ${incidents.map(incident => {
+              const duration = (new Date(incident.ended_at || Date.now()) - new Date(incident.started_at)) / 1000;
+              const durationText = duration > 60 ? `${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s` : `${Math.floor(duration)}s`;
+              
+              return `
+                <div style="background: var(--background); padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--border);">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <strong>Incident #${incident.id}</strong>
+                      ${incident.threat_detected ? '<span class="status detected" style="margin-left: 0.5rem;">THREAT</span>' : ''}
+                    </div>
+                    <button class="btn table-action-btn" onclick="viewIncident(${incident.id})" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Details</button>
+                  </div>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-top: 0.5rem; font-size: 0.875rem;">
+                    <div><span style="color: var(--muted-foreground);">Duration:</span> ${durationText}</div>
+                    <div><span style="color: var(--muted-foreground);">Frames:</span> ${incident.total_frames}</div>
+                    <div><span style="color: var(--muted-foreground);">Max Hands:</span> ${incident.max_hand_count}</div>
+                    <div><span style="color: var(--muted-foreground);">Confidence:</span> ${(incident.max_confidence * 100).toFixed(1)}%</div>
+                  </div>
+                  ${incident.threat_explanation ? `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--danger);">⚠️ ${incident.threat_explanation}</div>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+    }, 100);
+  } catch (error) {
+    console.error('Error loading incidents:', error);
+  }
+}
+
+function updateSessionPagination() {
+  const totalPages = Math.ceil(filteredSessions.length / sessionsPerPage);
+  const prevBtn = document.getElementById('sessionPrevBtn');
+  const nextBtn = document.getElementById('sessionNextBtn');
+  const pageInfo = document.getElementById('sessionPageInfo');
+  
+  if (prevBtn) prevBtn.disabled = currentSessionPage === 1;
+  if (nextBtn) nextBtn.disabled = currentSessionPage === totalPages || totalPages === 0;
+  if (pageInfo) pageInfo.textContent = `Page ${currentSessionPage} of ${Math.max(1, totalPages)}`;
+}
+
+function previousSessionPage() {
+  if (currentSessionPage > 1) {
+    currentSessionPage--;
+    renderSessions();
+  }
+}
+
+function nextSessionPage() {
+  const totalPages = Math.ceil(filteredSessions.length / sessionsPerPage);
+  if (currentSessionPage < totalPages) {
+    currentSessionPage++;
+    renderSessions();
+  }
+}
+
+function viewSession(sessionId) {
+  alert(`Viewing detailed session #${sessionId}\n\nThis will open a dedicated session view page.`);
+  // TODO: Navigate to session detail page
+}
+
+function viewIncident(incidentId) {
+  alert(`Viewing detailed incident #${incidentId}\n\nThis will show all frames and Gemini analyses.`);
+  // TODO: Open incident modal or page
 }
 
 setInterval(refreshData, 2000);
 
 refreshData();
 updateStreamStatus();
+</script>
+
+<script src="{{ url_for('static', filename='audit-table.js') }}"></script>
+
+<script>
+// Force horizontal layout with JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+  const dashboardLayout = document.querySelector('div[style*="display: flex !important"]');
+  if (dashboardLayout) {
+    dashboardLayout.style.display = 'flex';
+    dashboardLayout.style.flexDirection = 'row';
+    dashboardLayout.style.gap = '2rem';
+    dashboardLayout.style.marginBottom = '2rem';
+    dashboardLayout.style.width = '100%';
+    
+    // Force child elements to be flex items
+    const children = dashboardLayout.children;
+    for (let i = 0; i < children.length; i++) {
+      children[i].style.flex = '1';
+      children[i].style.display = 'flex';
+      children[i].style.flexDirection = 'column';
+      children[i].style.minWidth = '0';
+    }
+    
+    console.log('Forced horizontal layout with JavaScript');
+  }
+});
 </script>
 {% endblock %}

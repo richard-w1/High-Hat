@@ -1,6 +1,5 @@
 from flask import Flask, Response, jsonify, render_template
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
 import io
 import time
 import threading
@@ -22,42 +21,29 @@ from hand_detector import HandDetector
 from gemini_analyzer import GeminiAnalyzer
 from audio_notifier import AudioNotifier
 
+# Import new database models and managers
+from models import db, Session, Incident, IncidentFrame, GeminiAnalysis, UserAlert
+from session_manager import SessionManager, IncidentManager, GeminiAnalysisManager, AlertManager
+
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 app.config['SECRET_KEY'] = 'dev-secret-key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///theft_detection.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///security_monitor.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize database
-db = SQLAlchemy(app)
+# Initialize database with app
+db.init_app(app)
 
-class Incident(db.Model):
-    """Store theft detection incidents"""
-    id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.Float, nullable=False)
-    confidence = db.Column(db.Float, nullable=False)
-    explanation = db.Column(db.Text, nullable=True)
-    images_data = db.Column(db.Text, nullable=True)
-    resolved = db.Column(db.Boolean, default=False)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'timestamp': self.timestamp,
-            'confidence': self.confidence,
-            'explanation': self.explanation,
-            'resolved': self.resolved
-        }
-
-# Initialize database
+# Initialize database tables
 with app.app_context():
     try:
         db.create_all()
+        print("✅ Database tables initialized")
     except Exception as e:
-        print(f"Database already exists: {e}")
+        print(f"⚠️  Database initialization: {e}")
 
 # Initialize AI components
 print("🤖 Initializing AI components...")
@@ -65,9 +51,11 @@ hand_detector = HandDetector()
 gemini_analyzer = GeminiAnalyzer()
 audio_notifier = AudioNotifier()
 
-# Demo state
+# Session and monitoring state
 is_monitoring = False
-frame_count = 0
+current_session_id = None
+current_incident_id = None
+global_frame_count = 0
 
 # Pi camera URL
 PI_CAMERA_URL = "http://100.101.51.31:5000/video_feed"
@@ -87,12 +75,12 @@ latest_results = {
 }
 
 # PROPER VIDEO PROCESSING ARCHITECTURE
-# Separate threads for video capture and YOLO processing
+# Separate threads for video capture and MediaPipe hand detection processing
 frame_queue = queue.Queue(maxsize=10)  # Buffer for raw frames
-processed_frame_queue = queue.Queue(maxsize=10)  # Buffer for YOLO-processed frames
+processed_frame_queue = queue.Queue(maxsize=10)  # Buffer for processed frames with hand detections
 video_capture_thread = None
-yolo_processing_thread = None
-yolo_stream_active = False
+detection_processing_thread = None
+detection_stream_active = False
 
 # Store latest visualized image
 latest_visualized_image = None
@@ -100,7 +88,7 @@ latest_visualized_image = None
 # PROPER VIDEO PROCESSING FUNCTIONS
 def video_capture_worker():
     """Separate thread for continuous video capture from MJPEG stream"""
-    global yolo_stream_active, frame_queue
+    global detection_stream_active, frame_queue
     
     print("🎥 Starting video capture worker...")
     cap = cv2.VideoCapture(PI_CAMERA_URL)
@@ -110,7 +98,7 @@ def video_capture_worker():
         return
     
     frame_count = 0
-    while yolo_stream_active and cap.isOpened():
+    while detection_stream_active and cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             print("❌ Failed to read frame from video stream")
@@ -137,33 +125,146 @@ def video_capture_worker():
     cap.release()
     print("🎥 Video capture worker stopped")
 
-def yolo_processing_worker():
-    """Separate thread for YOLO processing of captured frames"""
-    global yolo_stream_active, processed_frame_queue
+def detection_processing_worker():
+    """
+    Separate thread for MediaPipe hand detection processing of captured frames
+    Also handles incident tracking and escalation logic
+    """
+    global detection_stream_active, processed_frame_queue, is_monitoring
+    global current_session_id, current_incident_id, global_frame_count
     
-    print("🤖 Starting YOLO processing worker...")
+    print("🤖 Starting MediaPipe hand detection processing worker...")
     frame_count = 0
-    yolo_frame_count = 0
+    detection_frame_count = 0
     last_detections = []
     detection_cooldown = 0
-    YOLO_SAMPLE_RATE = 5  # Process every 5th frame
+    DETECTION_SAMPLE_RATE = 5  # Process every 5th frame
     
-    while yolo_stream_active:
+    while detection_stream_active:
         try:
             # Get frame from queue (with timeout)
             frame_id, frame = frame_queue.get(timeout=1.0)
             frame_count += 1
             
-            # Only run YOLO every Nth frame OR when detection cooldown is active
-            should_run_yolo = (frame_count % YOLO_SAMPLE_RATE == 0) or (detection_cooldown > 0)
+            # Only run MediaPipe detection every Nth frame OR when detection cooldown is active
+            should_run_detection = (frame_count % DETECTION_SAMPLE_RATE == 0) or (detection_cooldown > 0)
             
-            if should_run_yolo:
-                yolo_frame_count += 1
-                print(f"🤖 Processing YOLO frame #{yolo_frame_count} (total #{frame_count})")
+            if should_run_detection:
+                detection_frame_count += 1
+                print(f"🤖 Processing MediaPipe frame #{detection_frame_count} (total #{frame_count})")
                 
-                # Run YOLO detection
+                # Run MediaPipe hand detection
                 has_hand, confidence, detections = hand_detector.detect_hands(frame)
                 
+                # INCIDENT TRACKING LOGIC (only when monitoring is active)
+                if is_monitoring and current_session_id:
+                    with app.app_context():
+                        # Increment session frame count
+                        SessionManager.increment_frame_count(current_session_id)
+                        global_frame_count += 1
+                        
+                        if has_hand and detections:
+                            # Hands detected!
+                            if not current_incident_id:
+                                # Create new incident
+                                incident = IncidentManager.create_incident(current_session_id)
+                                current_incident_id = incident.id
+                                print(f"🆕 NEW INCIDENT #{current_incident_id} - Hands first detected")
+                            
+                            # Add frame to incident
+                            incident_frame, should_escalate = IncidentManager.add_frame_to_incident(
+                                incident_id=current_incident_id,
+                                global_frame_num=global_frame_count,
+                                hand_count=len(detections),
+                                hand_confidence=confidence,
+                                hand_detections=detections,
+                                frame_image=frame  # Store frame image
+                            )
+                            
+                            # Check if we should send batch to Gemini (every 10 frames: 10, 20, 30...)
+                            incident = Incident.query.get(current_incident_id)
+                            
+                            if should_escalate or (incident and incident.total_frames % 10 == 0 and incident.total_frames > 0):
+                                batch_num = incident.total_frames // 10
+                                print(f"⚠️  BATCH ANALYSIS #{batch_num} - Incident #{current_incident_id} at {incident.total_frames} frames")
+                                
+                                # Get last 10 frames for Gemini analysis
+                                frames_for_analysis = IncidentManager.get_incident_frames_for_analysis(
+                                    current_incident_id, last_n_frames=10
+                                )
+                                
+                                # Convert frames to PIL Images for Gemini
+                                images_for_gemini = []
+                                for inc_frame in frames_for_analysis:
+                                    if inc_frame.image_data:
+                                        # Decode base64 image
+                                        img_bytes = base64.b64decode(inc_frame.image_data)
+                                        img = Image.open(io.BytesIO(img_bytes))
+                                        images_for_gemini.append(img)
+                                
+                                if images_for_gemini:
+                                    print(f"🤖 Sending {len(images_for_gemini)} frames to Gemini (batch #{batch_num})...")
+                                    start_time = time.time()
+                                    
+                                    # Call Gemini API
+                                    is_theft, threat_confidence, explanation = gemini_analyzer.analyze_theft_attempt(images_for_gemini)
+                                    
+                                    latency_ms = int((time.time() - start_time) * 1000)
+                                    print(f"🤖 Gemini response: Threat={is_theft}, Confidence={threat_confidence}%, Latency={latency_ms}ms")
+                                    
+                                    # Record analysis in database
+                                    GeminiAnalysisManager.record_analysis(
+                                        incident_id=current_incident_id,
+                                        frame_start=frames_for_analysis[0].frame_number,
+                                        frame_end=frames_for_analysis[-1].frame_number,
+                                        threat_detected=is_theft,
+                                        confidence=threat_confidence,
+                                        explanation=explanation,
+                                        latency_ms=latency_ms
+                                    )
+                                    
+                                    # If real threat detected, END THE INCIDENT
+                                    if is_theft and threat_confidence > 60:
+                                        print(f"🚨 THREAT CONFIRMED! Ending incident and sending alert...")
+                                        
+                                        # Mark entire incident as high threat
+                                        incident.threat_detected = True
+                                        incident.threat_confidence = threat_confidence
+                                        incident.threat_explanation = explanation
+                                        db.session.commit()
+                                        
+                                        # Send alert
+                                        AlertManager.send_alert(
+                                            incident_id=current_incident_id,
+                                            alert_type='theft_confirmed',
+                                            message=f"Potential theft detected: {explanation}",
+                                            audio_played=False,
+                                            notification_sent=True
+                                        )
+                                        
+                                        # Trigger audio alert
+                                        try:
+                                            audio_notifier.send_alert(threat_confidence, explanation)
+                                            print(f"🔊 Audio alert sent")
+                                        except Exception as e:
+                                            print(f"❌ Audio alert failed: {e}")
+                                        
+                                        # END THE INCIDENT (threat detected by Gemini)
+                                        IncidentManager.end_incident(current_incident_id)
+                                        print(f"🛑 INCIDENT #{current_incident_id} ENDED - Threat confirmed by Gemini")
+                                        current_incident_id = None
+                                    else:
+                                        print(f"✅ No threat in batch #{batch_num} (Confidence: {threat_confidence}%)")
+                                        print(f"   Incident continues - will analyze again at frame {incident.total_frames + 10}...")
+                        else:
+                            # No hands detected
+                            if current_incident_id:
+                                # End the current incident
+                                IncidentManager.end_incident(current_incident_id)
+                                print(f"✅ INCIDENT #{current_incident_id} ENDED - No hands detected")
+                                current_incident_id = None
+                
+                # Update visualization
                 if has_hand and detections:
                     last_detections = detections
                     detection_cooldown = 15  # Keep drawing for 15 frames
@@ -176,11 +277,11 @@ def yolo_processing_worker():
                 frame = hand_detector.draw_detections(frame, last_detections)
             
             # Add frame info overlay
-            cv2.putText(frame, f"Frame: {frame_count} | YOLO: {yolo_frame_count}", (10, 30), 
+            cv2.putText(frame, f"Frame: {frame_count} | Detection: {detection_frame_count}", (10, 30), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
             
             # Add efficiency indicator
-            efficiency_text = f"Efficiency: {yolo_frame_count}/{frame_count} frames"
+            efficiency_text = f"Efficiency: {detection_frame_count}/{frame_count} frames"
             cv2.putText(frame, efficiency_text, (10, 60), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
             
@@ -199,13 +300,13 @@ def yolo_processing_worker():
             # No frames available, continue
             continue
         except Exception as e:
-            print(f"❌ Error in YOLO processing: {e}")
+            print(f"❌ Error in MediaPipe hand detection processing: {e}")
             continue
     
-    print("🤖 YOLO processing worker stopped")
+    print("🤖 MediaPipe hand detection processing worker stopped")
 
-# YOLO stream processing
-yolo_stream_active = False
+# Detection stream processing
+detection_stream_active = False
 
 def update_dashboard_results(photo_count, detection_data, theft_detected, theft_confidence, explanation):
     """Update the latest results for dashboard display"""
@@ -224,152 +325,167 @@ def update_dashboard_results(photo_count, detection_data, theft_detected, theft_
     }
 
 def real_monitoring_loop():
-    """Real AI monitoring loop with continuous MJPEG stream processing"""
-    global is_monitoring
-    print("🔍 DEBUG: Real monitoring loop started - processing MJPEG stream")
-    frame_count = 0
+    """
+    Real AI monitoring loop with proper incident tracking
+    
+    Workflow:
+    1. Process each frame from video stream
+    2. Detect hands with MediaPipe
+    3. If hands detected:
+       - Create incident if none active
+       - Add frame to incident
+       - Check if 10 frames reached (escalation)
+       - If escalated: Send to Gemini for analysis
+       - If threat confirmed: Alert user
+    4. If no hands detected:
+       - End current incident if any
+    """
+    global is_monitoring, current_session_id, current_incident_id, global_frame_count
+    
+    print("🔍 Starting AI monitoring loop with incident tracking")
+    
+    # Use frame_queue from detection_processing_worker instead of creating new connection
+    # This monitoring loop just handles the database logic, not video processing
     
     while is_monitoring:
         try:
-            frame_count += 1
-            print(f"🎥 FRAME #{frame_count}: Processing MJPEG stream from Pi camera...")
-            print(f"🔍 DEBUG: Attempting to connect to {PI_CAMERA_URL}")
+            # Check if we have detection results from the processing worker
+            # This is a lightweight loop that just manages incidents
+            time.sleep(0.1)  # Check 10 times per second
             
-            # Get frame from Pi camera and run hand detection
-            detection_data, image_with_detections = hand_detector.detect_hands_from_camera(PI_CAMERA_URL)
-            
-            # Always store the latest visualized image for dashboard (with or without detections)
-            global latest_visualized_image
-            if image_with_detections is not None:
-                try:
-                    # Convert OpenCV image to base64 for web display
-                    _, buffer = cv2.imencode('.jpg', image_with_detections)
-                    img_base64 = base64.b64encode(buffer).decode('utf-8')
-                    latest_visualized_image = f"data:image/jpeg;base64,{img_base64}"
-                    print(f"🎥 FRAME #{frame_count}: Updated YOLO visualization")
-                except Exception as e:
-                    print(f"❌ FRAME #{frame_count}: Error encoding image: {e}")
-                    latest_visualized_image = None
-            
-            # Update dashboard with current frame results
-            if detection_data['hands_detected']:
-                print(f"🖐️ FRAME #{frame_count}: HANDS DETECTED! Count: {detection_data['hand_count']}, Max Confidence: {detection_data['max_confidence']:.2f}")
-                update_dashboard_results(frame_count, detection_data, False, 0.0, f"{detection_data['hand_count']} hands detected in frame")
-            else:
-                print(f"👀 FRAME #{frame_count}: No hands detected")
-                update_dashboard_results(frame_count, detection_data, False, 0.0, "No hands detected")
-            
-            # Only do deep analysis (Gemini) when hands are detected for multiple consecutive frames
-            if detection_data['hands_detected']:
-                print(f"🖐️ FRAME #{frame_count}: HANDS DETECTED! Capturing suspicious images...")
-                
-                # Capture multiple images for analysis
-                suspicious_images = hand_detector.capture_suspicious_images(PI_CAMERA_URL, num_images=5)
-                
-                if suspicious_images:
-                    print(f"📸 FRAME #{frame_count}: Captured {len(suspicious_images)} suspicious images")
-                    
-                    # Analyze with Gemini
-                    print(f"🤖 FRAME #{frame_count}: Sending images to Gemini for analysis...")
-                    is_theft, confidence, explanation = gemini_analyzer.analyze_theft_attempt(suspicious_images)
-                    
-                    print(f"🤖 FRAME #{frame_count}: Gemini Analysis: Theft={is_theft}, Confidence={confidence}%")
-                    print(f"💭 FRAME #{frame_count}: Explanation: {explanation}")
-                    
-                    # Update dashboard with real-time results
-                    update_dashboard_results(frame_count, detection_data, is_theft, confidence, explanation)
-                    
-                    if is_theft and confidence > 60:  # Threshold for alert
-                        print(f"🚨 FRAME #{frame_count}: THEFT DETECTED! Confidence: {confidence}%")
-                        
-                        # Create incident in database
-                        with app.app_context():
-                            # Convert images to base64 for storage
-                            images_b64 = []
-                            for img in suspicious_images:
-                                img_buffer = io.BytesIO()
-                                img.save(img_buffer, format='JPEG')
-                                img_b64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
-                                images_b64.append(img_b64)
-                            
-                            incident = Incident(
-                                timestamp=time.time(),
-                                confidence=confidence,
-                                explanation=explanation,
-                                images_data=json.dumps(images_b64)
-                            )
-                            
-                            db.session.add(incident)
-                            db.session.commit()
-                            print(f"💾 FRAME #{frame_count}: Incident saved to database with ID: {incident.id}")
-                            
-                            # Send audio alert
-                            print(f"🔊 FRAME #{frame_count}: Sending audio alert...")
-                            audio_notifier.send_alert(confidence, explanation)
-                            
-                            print(f"🚨 FRAME #{frame_count}: REAL INCIDENT DETECTED: {explanation} (Confidence: {confidence}%)")
-                    else:
-                        print(f"✅ FRAME #{frame_count}: No theft detected. Confidence: {confidence}%")
-                else:
-                    print(f"❌ FRAME #{frame_count}: Failed to capture suspicious images")
-            
-            # Process frames every 0.5 seconds for smooth YOLO detection
-            time.sleep(0.5)
-                
         except Exception as e:
-            print(f"❌ FRAME #{frame_count}: ERROR in monitoring loop: {e}")
-            print(f"🔍 DEBUG: Error type: {type(e).__name__}")
+            print(f"❌ ERROR in monitoring loop: {e}")
             import traceback
             traceback.print_exc()
-            print(f"🔍 DEBUG: Will retry in 1 second...")
-            time.sleep(1)  # Wait 1 second before retrying
+            time.sleep(1)
     
-    print("🔍 DEBUG: Real monitoring loop ended")
+    print("🔍 Monitoring loop ended")
 
 # API Routes
 @app.route('/api/start_monitoring', methods=['POST'])
 def start_monitoring():
-    """Start real AI theft detection monitoring"""
-    global is_monitoring
-    print(f"🔍 DEBUG: Start monitoring called, current state: is_monitoring={is_monitoring}")
+    """Start real AI theft detection monitoring and create new session"""
+    global is_monitoring, current_session_id, current_incident_id, global_frame_count
     
     if not is_monitoring:
+        # Create new monitoring session
+        with app.app_context():
+            session = SessionManager.start_session()
+            current_session_id = session.id
+            current_incident_id = None
+            global_frame_count = 0
+        
         is_monitoring = True
-        print("🔍 DEBUG: Setting is_monitoring to True")
-        # Start real monitoring thread
-        monitor_thread = threading.Thread(target=real_monitoring_loop, daemon=True)
-        monitor_thread.start()
-        print("🔍 DEBUG: Real monitoring thread started")
-        print("🔍 DEBUG: Thread is alive:", monitor_thread.is_alive())
-        print("🛡️ REAL AI Monitoring started - YOLO + Gemini + ElevenLabs active")
-        return jsonify({'status': 'success', 'message': 'Real AI monitoring started'})
+        
+        print(f"🛡️ MONITORING STARTED - Session #{current_session_id}")
+        print("   MediaPipe hand detection: Active")
+        print("   Gemini analysis: Ready")
+        print("   ElevenLabs audio: Ready")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Monitoring started',
+            'session_id': current_session_id
+        })
     else:
-        print("🔍 DEBUG: Already monitoring, returning error")
-        return jsonify({'status': 'error', 'message': 'Already monitoring'})
+        return jsonify({
+            'status': 'error',
+            'message': 'Already monitoring',
+            'session_id': current_session_id
+        })
 
 @app.route('/api/stop_monitoring', methods=['POST'])
 def stop_monitoring():
-    """Stop AI theft detection monitoring"""
-    global is_monitoring, yolo_stream_active
-    is_monitoring = False
-    yolo_stream_active = False
-    print("⏹️ AI Monitoring stopped")
-    return jsonify({'status': 'success', 'message': 'AI monitoring stopped'})
+    """Stop AI theft detection monitoring and end current session"""
+    global is_monitoring, detection_stream_active, current_session_id, current_incident_id
+    
+    if is_monitoring and current_session_id:
+        # End any active incident first
+        if current_incident_id:
+            with app.app_context():
+                IncidentManager.end_incident(current_incident_id)
+                print(f"   Incident #{current_incident_id} ended")
+                current_incident_id = None
+        
+        # End the session
+        with app.app_context():
+            session = SessionManager.end_session(current_session_id)
+            print(f"⏹️ MONITORING STOPPED - Session #{current_session_id}")
+            print(f"   Duration: {session.ended_at - session.started_at if session.ended_at else 'N/A'}")
+            print(f"   Total frames: {session.total_frames}")
+            print(f"   Total incidents: {session.total_incidents}")
+            print(f"   Total escalations: {session.total_escalations}")
+        
+        session_id = current_session_id
+        current_session_id = None
+        
+        is_monitoring = False
+        detection_stream_active = False
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Monitoring stopped',
+            'session_id': session_id
+        })
+    else:
+        return jsonify({
+            'status': 'error',
+            'message': 'Not monitoring'
+        })
 
 @app.route('/api/incidents')
 def get_incidents():
     """Get recent incidents from database"""
-    incidents = Incident.query.order_by(Incident.timestamp.desc()).limit(10).all()
+    incidents = Incident.query.order_by(Incident.started_at.desc()).limit(20).all()
     return jsonify({'incidents': [incident.to_dict() for incident in incidents]})
+
+@app.route('/api/sessions')
+def get_sessions():
+    """Get all sessions"""
+    sessions = Session.query.order_by(Session.started_at.desc()).all()
+    return jsonify({'sessions': [session.to_dict() for session in sessions]})
+
+@app.route('/api/sessions/<int:session_id>')
+def get_session_detail(session_id):
+    """Get detailed session info with all incidents"""
+    session = Session.query.get(session_id)
+    if not session:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    session_data = session.to_dict()
+    session_data['incidents'] = [incident.to_dict() for incident in session.incidents]
+    
+    return jsonify({'session': session_data})
+
+@app.route('/api/incidents/<int:incident_id>')
+def get_incident_detail(incident_id):
+    """Get detailed incident info with all frames and analyses"""
+    incident = Incident.query.get(incident_id)
+    if not incident:
+        return jsonify({'error': 'Incident not found'}), 404
+    
+    incident_data = incident.to_dict()
+    incident_data['frames'] = [frame.to_dict() for frame in incident.frames]
+    incident_data['analyses'] = [analysis.to_dict() for analysis in incident.gemini_analyses]
+    incident_data['alerts'] = [alert.to_dict() for alert in incident.alerts]
+    
+    return jsonify({'incident': incident_data})
 
 @app.route('/api/session')
 def get_session():
     """Get current session info"""
+    global current_session_id
+    
+    if current_session_id:
+        session = Session.query.get(current_session_id)
+        if session:
+            return jsonify({'session': session.to_dict()})
+    
+    # No active session
     return jsonify({
         'session': {
-            'is_active': is_monitoring,
-            'total_incidents': Incident.query.count(),
-            'start_time': time.time() - 3600 if is_monitoring else None
+            'is_active': False,
+            'id': None
         }
     })
 
@@ -399,7 +515,7 @@ def get_hand_detection_data():
 
 @app.route('/api/visualized_image', methods=['GET'])
 def get_visualized_image():
-    """Get the latest image with YOLO detections"""
+    """Get the latest image with hand detections"""
     global latest_visualized_image
     print(f"🔍 DEBUG: Visualized image requested, has_image: {latest_visualized_image is not None}")
     if latest_visualized_image:
@@ -413,30 +529,30 @@ def get_visualized_image():
             'has_image': False
         })
 
-@app.route('/yolo_stream')
-def yolo_stream():
-    """Stream YOLO-processed frames using proper multi-threaded architecture"""
-    def generate_yolo_frames():
-        global yolo_stream_active, video_capture_thread, yolo_processing_thread
+@app.route('/detection_stream')
+def detection_stream():
+    """Stream MediaPipe hand detection processed frames using proper multi-threaded architecture"""
+    def generate_detection_frames():
+        global detection_stream_active, video_capture_thread, detection_processing_thread
         
         # Start background threads if not already running
-        if not yolo_stream_active:
-            yolo_stream_active = True
-            print("🎥 Starting YOLO stream with proper multi-threading architecture")
+        if not detection_stream_active:
+            detection_stream_active = True
+            print("🎥 Starting hand detection stream with proper multi-threading architecture")
             
             # Start video capture thread
             video_capture_thread = threading.Thread(target=video_capture_worker, daemon=True)
             video_capture_thread.start()
             
-            # Start YOLO processing thread
-            yolo_processing_thread = threading.Thread(target=yolo_processing_worker, daemon=True)
-            yolo_processing_thread.start()
+            # Start MediaPipe hand detection processing thread
+            detection_processing_thread = threading.Thread(target=detection_processing_worker, daemon=True)
+            detection_processing_thread.start()
             
-            print("✅ Background threads started: Video capture + YOLO processing")
+            print("✅ Background threads started: Video capture + MediaPipe hand detection processing")
         
         # Stream processed frames from the queue
         frame_count = 0
-        while yolo_stream_active:
+        while detection_stream_active:
             try:
                 # Get processed frame from queue (with timeout)
                 frame_id, processed_frame = processed_frame_queue.get(timeout=2.0)
@@ -465,7 +581,7 @@ def yolo_stream():
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
             except Exception as e:
-                print(f"❌ Error in YOLO stream: {e}")
+                print(f"❌ Error in detection stream: {e}")
                 # Send error frame
                 error_frame = np.zeros((480, 640, 3), dtype=np.uint8)
                 cv2.putText(error_frame, f"Stream Error: {str(e)[:50]}", (50, 200), 
@@ -475,9 +591,9 @@ def yolo_stream():
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
         
-        print("🎥 YOLO stream ended")
+        print("🎥 Detection stream ended")
     
-    return Response(generate_yolo_frames(),
+    return Response(generate_detection_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/api/test_incident', methods=['POST'])
@@ -553,15 +669,35 @@ def test_audio():
 
 @app.route('/')
 def index():
+    return render_template('index.html')
+
+@app.route('/dashboard')
+def dashboard():
     return render_template('dashboard.html')
 
+@app.route('/sessions')
+def sessions():
+    return render_template('sessions.html')
+
+@app.route('/sessions/all')
+def sessions_all():
+    return render_template('sessions_all.html')
+
+@app.route('/sessions/<int:session_id>')
+def session_detail(session_id):
+    return render_template('session_details.html')
+
+@app.route('/incidents/<int:incident_id>')
+def incident_detail(incident_id):
+    return render_template('incident.html')
+
 if __name__ == '__main__':
-    print("🚀 Starting REAL AI-Powered Backpack Security System")
-    print("🤖 YOLO Hand Detection: Ready")
+    print("🚀 Starting REAL AI-Powered Security System")
+    print("🤖 MediaPipe Hand Detection: Ready")
     print("🤖 Gemini API: Ready for real analysis")
     print("🔊 ElevenLabs: Ready for voice alerts")
     print("📹 Pi Camera: http://100.101.51.31:5000/video_feed")
     print("🖥️  Dashboard: http://10.230.40.145:5000")
-    print("🎯 REAL AI monitoring with YOLO + Gemini + ElevenLabs")
+    print("🎯 REAL AI monitoring with MediaPipe + Gemini + ElevenLabs")
     print("Press Ctrl+C to stop")
     app.run(host='0.0.0.0', port=5000, threaded=True)

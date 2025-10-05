@@ -1,6 +1,6 @@
 {% extends 'layout.html' %}
 
-{% block title %}Overview - M.O.N.K.Y{% endblock %}
+{% block title %}Overview{% endblock %}
 
 {% block content %}
 <div class="card">
@@ -27,9 +27,9 @@
 
   {% else %}
     <div style="text-align: center; padding: 3rem 1rem;">
-      <div style="font-size: 4rem; margin-bottom: 1rem;">🔒</div>
+      <span class="material-icons" style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">lock</span>
       <h2>No Active Session</h2>
-      <p style="color: var(--muted-foreground); margin: 1rem 0;">Your backpack monitoring system is currently inactive. Start a new session to begin monitoring.</p>
+      <p style="color: var(--muted-foreground); margin: 1rem 0;">Your security monitoring system is currently inactive. Start a new session to begin monitoring.</p>
       <a href="/dashboard" class="btn" style="margin-top: 1rem;">Go to Live Monitor</a>
     </div>
   {% endif %}
@@ -65,7 +65,7 @@
     </div>
   {% else %}
     <div style="text-align: center; padding: 2rem; color: var(--muted-foreground);">
-      <div style="font-size: 2rem; margin-bottom: 1rem;">📋</div>
+      <span class="material-icons" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;">inventory_2</span>
       <p>No previous sessions found</p>
     </div>
   {% endif %}
