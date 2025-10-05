@@ -1,647 +1,431 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backpack Security Dashboard</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f0f0;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .header {
-            background: #2c3e50;
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .controls {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .video-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .incidents {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        button {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-right: 10px;
-        }
-        button:hover {
-            background: #2980b9;
-        }
-        button.danger {
-            background: #e74c3c;
-        }
-        button.danger:hover {
-            background: #c0392b;
-        }
-        button.success {
-            background: #27ae60;
-        }
-        button.success:hover {
-            background: #229954;
-        }
-        button.info {
-            background: #3498db;
-        }
-        button.info:hover {
-            background: #2980b9;
-        }
+{% extends 'layout.html' %}
 
-        .realtime-results {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
+{% block title %}Live Monitor - M.O.N.K.Y{% endblock %}
 
-        .result-card {
-            background: white;
-            border-radius: 6px;
-            padding: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+{% block content %}
+<div class="card">
+  <h2>🛡️ Live Monitoring System</h2>
+  <p style="color: var(--muted-foreground);">AI-powered theft detection with Gemini, YOLO, and ElevenLabs</p>
+</div>
 
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
+<div class="card">
+  <h3>Monitoring Controls</h3>
+  <div class="controls">
+    <button id="startBtn" onclick="startMonitoring()">Start Monitoring</button>
+    <button id="stopBtn" onclick="stopMonitoring()" class="danger">Stop Monitoring</button>
+    <button onclick="refreshData()">Refresh Data</button>
+    <button onclick="testIncident()" class="success">Test Incident</button>
+    <button onclick="testHandDetection()" class="info">Test Hand Detection</button>
+    <button onclick="testGemini()" class="info">Test Gemini</button>
+    <button onclick="testAudio()" class="info">Test Audio</button>
+    <div id="status" class="status stopped">Status: Stopped</div>
+  </div>
+</div>
 
-        .result-content {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .result-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-        }
-
-        .result-item .label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .result-item .status {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: 600;
-        }
-
-        .status.detected {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status.not-detected {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
-        .status.unknown {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .status {
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-        }
-        .status.monitoring {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .status.stopped {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .incident-item {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-        .incident-item.high-confidence {
-            border-left: 4px solid #e74c3c;
-        }
-        .incident-item.medium-confidence {
-            border-left: 4px solid #f39c12;
-        }
-        .incident-item.low-confidence {
-            border-left: 4px solid #3498db;
-        }
-        #videoStream {
-            max-width: 100%;
-            height: auto;
-            border-radius: 4px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🛡️ Backpack Security System</h1>
-            <p>AI-powered theft detection with Gemini, YOLO, and ElevenLabs</p>
-        </div>
-
-        <div class="controls">
-            <h3>Monitoring Controls</h3>
-            <button id="startBtn" onclick="startMonitoring()">Start Monitoring</button>
-            <button id="stopBtn" onclick="stopMonitoring()" class="danger">Stop Monitoring</button>
-            <button onclick="refreshData()">Refresh Data</button>
-            <button onclick="testIncident()" class="success">Test Incident</button>
-            <button onclick="testHandDetection()" class="info">Test Hand Detection</button>
-            <button onclick="testGemini()" class="info">Test Gemini</button>
-            <button onclick="testAudio()" class="info">Test Audio</button>
-            <div id="status" class="status stopped">Status: Stopped</div>
-        </div>
-
-        <div class="video-container">
-            <h3>🎯 Live YOLO Detection Stream</h3>
-            <div id="yoloFeed" style="text-align: center; position: relative;">
-                <img id="yoloStream" src="/yolo_stream" alt="YOLO Detection Feed" style="max-width: 100%; height: auto; border: 2px solid #007bff; border-radius: 8px;">
-                <canvas id="detectionOverlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 8px;"></canvas>
-                <div id="streamStatus" style="margin-top: 10px;">
-                    <span id="streamIndicator" class="status not-detected">Stream: Loading...</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="realtime-results" id="realtimeResults" style="display: none;">
-            <h3>Real-Time Analysis Results</h3>
-            <div class="result-card">
-                <div class="result-header">
-                    <span id="photoCount">Photo #0</span>
-                    <span id="resultTimestamp">--:--:--</span>
-                </div>
-                <div class="result-content">
-                    <div class="result-item">
-                        <span class="label">Hand Detection:</span>
-                        <span id="handDetection" class="status">Unknown</span>
-                    </div>
-                    <div class="result-item">
-                        <span class="label">Hand Count:</span>
-                        <span id="handCount">0</span>
-                    </div>
-                    <div class="result-item">
-                        <span class="label">Hand Confidence:</span>
-                        <span id="handConfidence">0%</span>
-                    </div>
-                    <div class="result-item">
-                        <span class="label">Hand Positions:</span>
-                        <span id="handPositions">None</span>
-                    </div>
-                    <div class="result-item">
-                        <span class="label">Theft Analysis:</span>
-                        <span id="theftAnalysis" class="status">Unknown</span>
-                    </div>
-                    <div class="result-item">
-                        <span class="label">Theft Confidence:</span>
-                        <span id="theftConfidence">0%</span>
-                    </div>
-                    <div class="result-item">
-                        <span class="label">Explanation:</span>
-                        <span id="explanation">No analysis yet</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="debug-info" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 20px 0;">
-            <h4>🔍 Debug Information</h4>
-            <div id="debugStatus">
-                <p><strong>Dashboard Updates:</strong> Every 5 seconds</p>
-                <p><strong>Photo Frequency:</strong> Every 1 second (when monitoring)</p>
-                <p><strong>Last Update:</strong> <span id="lastUpdateTime">Never</span></p>
-                <p><strong>API Status:</strong> <span id="apiStatus">Unknown</span></p>
-            </div>
-        </div>
-
-        <div class="incidents">
-            <h3>Recent Incidents</h3>
-            <div id="incidentsList">
-                <p>No incidents recorded yet.</p>
-            </div>
-        </div>
+<div class="card video-container">
+  <h3>🎯 Live YOLO Detection Stream</h3>
+  <div id="yoloFeed">
+    <img id="yoloStream" src="/yolo_stream" alt="YOLO Detection Feed">
+    <canvas id="detectionOverlay"></canvas>
+    <div id="streamStatus">
+      <span id="streamIndicator" class="status not-detected">Stream: Loading...</span>
     </div>
+  </div>
+</div>
 
-    <script>
-        let isMonitoring = false;
+<div class="realtime-results" id="realtimeResults" style="display: none;">
+  <h3>Real-Time Analysis Results</h3>
+  <div class="result-card">
+    <div class="result-header">
+      <span id="photoCount">Photo #0</span>
+      <span id="resultTimestamp">--:--:--</span>
+    </div>
+    <div class="result-content">
+      <div class="result-item">
+        <span class="label">Hand Detection:</span>
+        <span id="handDetection" class="status unknown">Unknown</span>
+      </div>
+      <div class="result-item">
+        <span class="label">Hand Count:</span>
+        <span id="handCount">0</span>
+      </div>
+      <div class="result-item">
+        <span class="label">Hand Confidence:</span>
+        <span id="handConfidence">0%</span>
+      </div>
+      <div class="result-item">
+        <span class="label">Hand Positions:</span>
+        <span id="handPositions">None</span>
+      </div>
+      <div class="result-item">
+        <span class="label">Theft Analysis:</span>
+        <span id="theftAnalysis" class="status unknown">Unknown</span>
+      </div>
+      <div class="result-item">
+        <span class="label">Theft Confidence:</span>
+        <span id="theftConfidence">0%</span>
+      </div>
+      <div class="result-item">
+        <span class="label">Explanation:</span>
+        <span id="explanation">No analysis yet</span>
+      </div>
+    </div>
+  </div>
+</div>
 
-        async function startMonitoring() {
-            try {
-                const response = await fetch('/api/start_monitoring', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    isMonitoring = true;
-                    updateStatus('Monitoring', 'monitoring');
-                    document.getElementById('startBtn').disabled = true;
-                    document.getElementById('stopBtn').disabled = false;
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            } catch (error) {
-                alert('Error starting monitoring: ' + error.message);
-            }
-        }
+<div class="debug-info">
+  <h4>🔍 Debug Information</h4>
+  <div id="debugStatus">
+    <p><strong>Dashboard Updates:</strong> Every 5 seconds</p>
+    <p><strong>Photo Frequency:</strong> Every 1 second (when monitoring)</p>
+    <p><strong>Last Update:</strong> <span id="lastUpdateTime">Never</span></p>
+    <p><strong>API Status:</strong> <span id="apiStatus">Unknown</span></p>
+  </div>
+</div>
 
-        async function stopMonitoring() {
-            try {
-                const response = await fetch('/api/stop_monitoring', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    isMonitoring = false;
-                    updateStatus('Stopped', 'stopped');
-                    document.getElementById('startBtn').disabled = false;
-                    document.getElementById('stopBtn').disabled = true;
-                }
-            } catch (error) {
-                alert('Error stopping monitoring: ' + error.message);
-            }
-        }
+<div class="card">
+  <h3>Recent Incidents</h3>
+  <div id="incidentsList">
+    <p>No incidents recorded yet.</p>
+  </div>
+</div>
 
-        function updateStatus(text, className) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = 'Status: ' + text;
-            statusDiv.className = 'status ' + className;
-        }
+<script>
+let isMonitoring = false;
 
-        async function testIncident() {
-            try {
-                const response = await fetch('/api/test_incident', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                const data = await response.json();
-                alert('Test incident: ' + data.message);
-                refreshData();
-            } catch (error) {
-                alert('Error creating test incident: ' + error.message);
-            }
-        }
+async function startMonitoring() {
+  try {
+    const response = await fetch('/api/start_monitoring', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    
+    if (data.status === 'success') {
+      isMonitoring = true;
+      updateStatus('Monitoring', 'monitoring');
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+    } else {
+      alert('Error: ' + data.message);
+    }
+  } catch (error) {
+    alert('Error starting monitoring: ' + error.message);
+  }
+}
 
-        async function testHandDetection() {
-            try {
-                const response = await fetch('/api/test_hand_detection', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                const data = await response.json();
-                alert('Hand detection test: ' + data.message);
-            } catch (error) {
-                alert('Error testing hand detection: ' + error.message);
-            }
-        }
+async function stopMonitoring() {
+  try {
+    const response = await fetch('/api/stop_monitoring', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    
+    if (data.status === 'success') {
+      isMonitoring = false;
+      updateStatus('Stopped', 'stopped');
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    }
+  } catch (error) {
+    alert('Error stopping monitoring: ' + error.message);
+  }
+}
 
-        async function testGemini() {
-            try {
-                const response = await fetch('/api/test_gemini', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                const data = await response.json();
-                alert('Gemini test: ' + data.message);
-            } catch (error) {
-                alert('Error testing Gemini: ' + error.message);
-            }
-        }
+function updateStatus(text, className) {
+  const statusDiv = document.getElementById('status');
+  statusDiv.textContent = 'Status: ' + text;
+  statusDiv.className = 'status ' + className;
+}
 
-        async function testAudio() {
-            try {
-                const response = await fetch('/api/test_audio', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                const data = await response.json();
-                alert('Audio test: ' + data.message);
-            } catch (error) {
-                alert('Error testing audio: ' + error.message);
-            }
-        }
+async function testIncident() {
+  try {
+    const response = await fetch('/api/test_incident', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    alert('Test incident: ' + data.message);
+    refreshData();
+  } catch (error) {
+    alert('Error creating test incident: ' + error.message);
+  }
+}
 
-        async function refreshData() {
-            try {
-                console.log('🔄 DEBUG: Refreshing dashboard data...');
-                
-                // Update debug info
-                document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
-                document.getElementById('apiStatus').textContent = 'Fetching...';
-                
-                // Get incidents
-                const incidentsResponse = await fetch('/api/incidents');
-                const incidentsData = await incidentsResponse.json();
-                displayIncidents(incidentsData.incidents);
+async function testHandDetection() {
+  try {
+    const response = await fetch('/api/test_hand_detection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    alert('Hand detection test: ' + data.message);
+  } catch (error) {
+    alert('Error testing hand detection: ' + error.message);
+  }
+}
 
-                // Get session info
-                const sessionResponse = await fetch('/api/session');
-                const sessionData = await sessionResponse.json();
-                console.log('📊 DEBUG: Session data:', sessionData);
-                
-                if (sessionData.session && sessionData.session.is_active) {
-                    isMonitoring = true;
-                    updateStatus('Monitoring', 'monitoring');
-                    document.getElementById('startBtn').disabled = true;
-                    document.getElementById('stopBtn').disabled = false;
-                    
-                    // Show real-time results section when monitoring
-                    document.getElementById('realtimeResults').style.display = 'block';
-                    
-                    // Get latest results
-                    console.log('📸 DEBUG: Fetching latest results...');
-                    const resultsResponse = await fetch('/api/latest_results');
-                    const resultsData = await resultsResponse.json();
-                    console.log('📊 DEBUG: Latest results:', resultsData);
-                    updateRealtimeResults(resultsData.results);
-                    
-                    // Get detailed hand detection data
-                    console.log('🖐️ DEBUG: Fetching detailed hand detection data...');
-                    const handResponse = await fetch('/api/hand_detection_data');
-                    const handData = await handResponse.json();
-                    console.log('🖐️ DEBUG: Hand detection data:', handData);
-                    updateHandDetectionDisplay(handData);
-                    
-                    // Get YOLO visualized image
-                    console.log('🎯 DEBUG: Fetching YOLO visualized image...');
-                    const imageResponse = await fetch('/api/visualized_image');
-                    const imageData = await imageResponse.json();
-                    updateYOLOFeed(imageData);
-                    
-                    document.getElementById('apiStatus').textContent = 'Connected';
-                } else {
-                    // Hide real-time results when not monitoring
-                    document.getElementById('realtimeResults').style.display = 'none';
-                    console.log('⏹️ DEBUG: Not monitoring, hiding real-time results');
-                    document.getElementById('apiStatus').textContent = 'Not monitoring';
-                }
-            } catch (error) {
-                console.error('❌ DEBUG: Error refreshing data:', error);
-                document.getElementById('apiStatus').textContent = 'Error: ' + error.message;
-            }
-        }
+async function testGemini() {
+  try {
+    const response = await fetch('/api/test_gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    alert('Gemini test: ' + data.message);
+  } catch (error) {
+    alert('Error testing Gemini: ' + error.message);
+  }
+}
 
-        function updateRealtimeResults(results) {
-            if (!results) {
-                console.log('❌ DEBUG: No results to update');
-                return;
-            }
-            
-            console.log('📊 DEBUG: Updating real-time results:', results);
-            
-            // Update photo count
-            document.getElementById('photoCount').textContent = `Photo #${results.photo_count}`;
-            console.log(`📸 DEBUG: Updated photo count to #${results.photo_count}`);
-            
-            // Update timestamp
-            if (results.timestamp) {
-                const date = new Date(results.timestamp * 1000);
-                document.getElementById('resultTimestamp').textContent = date.toLocaleTimeString();
-                console.log(`⏰ DEBUG: Updated timestamp to ${date.toLocaleTimeString()}`);
-            }
-            
-            // Update hand detection
-            const handDetection = document.getElementById('handDetection');
-            if (results.hands_detected) {
-                handDetection.textContent = 'Detected';
-                handDetection.className = 'status detected';
-                console.log('👋 DEBUG: Hands detected');
-            } else {
-                handDetection.textContent = 'Not Detected';
-                handDetection.className = 'status not-detected';
-                console.log('👀 DEBUG: No hands detected');
-            }
-            
-            // Update hand count
-            document.getElementById('handCount').textContent = results.hand_count || 0;
-            console.log(`🖐️ DEBUG: Hand count: ${results.hand_count || 0}`);
-            
-            // Update hand confidence
-            document.getElementById('handConfidence').textContent = `${Math.round(results.hand_confidence)}%`;
-            console.log(`📊 DEBUG: Hand confidence: ${Math.round(results.hand_confidence)}%`);
-            
-            // Update hand positions
-            const handPositions = results.hand_positions || [];
-            if (handPositions.length > 0) {
-                const positionText = handPositions.map((pos, index) => 
-                    `Hand ${index + 1}: (${pos[0]}, ${pos[1]}, ${pos[2]}, ${pos[3]})`
-                ).join('; ');
-                document.getElementById('handPositions').textContent = positionText;
-            } else {
-                document.getElementById('handPositions').textContent = 'None';
-            }
-            console.log(`📍 DEBUG: Hand positions: ${handPositions.length} detected`);
-            
-            // Update theft analysis
-            const theftAnalysis = document.getElementById('theftAnalysis');
-            if (results.theft_detected) {
-                theftAnalysis.textContent = 'Suspicious';
-                theftAnalysis.className = 'status detected';
-                console.log('🚨 DEBUG: Theft detected');
-            } else {
-                theftAnalysis.textContent = 'Safe';
-                theftAnalysis.className = 'status not-detected';
-                console.log('✅ DEBUG: No theft detected');
-            }
-            
-            // Update theft confidence
-            document.getElementById('theftConfidence').textContent = `${Math.round(results.theft_confidence)}%`;
-            console.log(`📊 DEBUG: Theft confidence: ${Math.round(results.theft_confidence)}%`);
-            
-            // Update explanation
-            document.getElementById('explanation').textContent = results.explanation || 'No analysis yet';
-            console.log(`💭 DEBUG: Explanation: ${results.explanation || 'No analysis yet'}`);
-        }
+async function testAudio() {
+  try {
+    const response = await fetch('/api/test_audio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    alert('Audio test: ' + data.message);
+  } catch (error) {
+    alert('Error testing audio: ' + error.message);
+  }
+}
 
-        function updateYOLOFeed(imageData) {
-            // This function is now handled by the direct MJPEG stream
-            console.log('🎯 DEBUG: YOLO feed is now handled by direct MJPEG stream');
-        }
+async function refreshData() {
+  try {
+    console.log('[v0] Refreshing dashboard data...');
+    
+    document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
+    document.getElementById('apiStatus').textContent = 'Fetching...';
+    
+    const incidentsResponse = await fetch('/api/incidents');
+    const incidentsData = await incidentsResponse.json();
+    displayIncidents(incidentsData.incidents);
 
-        function updateHandDetectionDisplay(handData) {
-            console.log('🖐️ DEBUG: Updating hand detection display with:', handData);
-            
-            // Update hand detection status
-            const handDetection = document.getElementById('handDetection');
-            if (handData.hands_detected) {
-                handDetection.textContent = 'Detected';
-                handDetection.className = 'status detected';
-            } else {
-                handDetection.textContent = 'Not Detected';
-                handDetection.className = 'status not-detected';
-            }
-            
-            // Update hand count
-            document.getElementById('handCount').textContent = handData.hand_count || 0;
-            
-            // Update hand confidence
-            document.getElementById('handConfidence').textContent = `${Math.round(handData.hand_confidence || 0)}%`;
-            
-            // Update hand positions
-            const handPositions = handData.hand_positions || [];
-            if (handPositions.length > 0) {
-                const positionText = handPositions.map((pos, index) => 
-                    `Hand ${index + 1}: (${pos[0]}, ${pos[1]}, ${pos[2]}, ${pos[3]})`
-                ).join('; ');
-                document.getElementById('handPositions').textContent = positionText;
-            } else {
-                document.getElementById('handPositions').textContent = 'None';
-            }
-            
-            // Draw detection boxes on video overlay
-            drawDetectionBoxes(handData);
-            
-            console.log(`🖐️ DEBUG: Updated display - Count: ${handData.hand_count}, Confidence: ${handData.hand_confidence}%, Positions: ${handPositions.length}`);
-        }
+    const sessionResponse = await fetch('/api/session');
+    const sessionData = await sessionResponse.json();
+    console.log('[v0] Session data:', sessionData);
+    
+    if (sessionData.session && sessionData.session.is_active) {
+      isMonitoring = true;
+      updateStatus('Monitoring', 'monitoring');
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      
+      document.getElementById('realtimeResults').style.display = 'block';
+      
+      console.log('[v0] Fetching latest results...');
+      const resultsResponse = await fetch('/api/latest_results');
+      const resultsData = await resultsResponse.json();
+      console.log('[v0] Latest results:', resultsData);
+      updateRealtimeResults(resultsData.results);
+      
+      console.log('[v0] Fetching detailed hand detection data...');
+      const handResponse = await fetch('/api/hand_detection_data');
+      const handData = await handResponse.json();
+      console.log('[v0] Hand detection data:', handData);
+      updateHandDetectionDisplay(handData);
+      
+      console.log('[v0] Fetching YOLO visualized image...');
+      const imageResponse = await fetch('/api/visualized_image');
+      const imageData = await imageResponse.json();
+      updateYOLOFeed(imageData);
+      
+      document.getElementById('apiStatus').textContent = 'Connected';
+    } else {
+      document.getElementById('realtimeResults').style.display = 'none';
+      console.log('[v0] Not monitoring, hiding real-time results');
+      document.getElementById('apiStatus').textContent = 'Not monitoring';
+    }
+  } catch (error) {
+    console.error('[v0] Error refreshing data:', error);
+    document.getElementById('apiStatus').textContent = 'Error: ' + error.message;
+  }
+}
 
-        function drawDetectionBoxes(handData) {
-            const canvas = document.getElementById('detectionOverlay');
-            const img = document.getElementById('yoloStream');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas size to match image
-            canvas.width = img.clientWidth;
-            canvas.height = img.clientHeight;
-            
-            // Clear previous drawings
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw hand detection boxes
-            if (handData.hand_positions && handData.hand_positions.length > 0) {
-                ctx.strokeStyle = '#00ff00'; // Green for hands
-                ctx.lineWidth = 3;
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#00ff00';
-                
-                handData.hand_positions.forEach((bbox, index) => {
-                    const [x1, y1, x2, y2] = bbox;
-                    
-                    // Scale coordinates to canvas size (assuming original detection was on full image)
-                    const scaleX = canvas.width / 640; // Adjust based on your camera resolution
-                    const scaleY = canvas.height / 480; // Adjust based on your camera resolution
-                    
-                    const scaledX1 = x1 * scaleX;
-                    const scaledY1 = y1 * scaleY;
-                    const scaledX2 = x2 * scaleX;
-                    const scaledY2 = y2 * scaleY;
-                    
-                    // Draw bounding box
-                    ctx.strokeRect(scaledX1, scaledY1, scaledX2 - scaledX1, scaledY2 - scaledY1);
-                    
-                    // Draw label
-                    const label = `Hand ${index + 1}`;
-                    ctx.fillText(label, scaledX1, scaledY1 - 5);
-                });
-            }
-        }
+function updateRealtimeResults(results) {
+  if (!results) {
+    console.log('[v0] No results to update');
+    return;
+  }
+  
+  console.log('[v0] Updating real-time results:', results);
+  
+  document.getElementById('photoCount').textContent = `Photo #${results.photo_count}`;
+  console.log(`[v0] Updated photo count to #${results.photo_count}`);
+  
+  if (results.timestamp) {
+    const date = new Date(results.timestamp * 1000);
+    document.getElementById('resultTimestamp').textContent = date.toLocaleTimeString();
+    console.log(`[v0] Updated timestamp to ${date.toLocaleTimeString()}`);
+  }
+  
+  const handDetection = document.getElementById('handDetection');
+  if (results.hands_detected) {
+    handDetection.textContent = 'Detected';
+    handDetection.className = 'status detected';
+    console.log('[v0] Hands detected');
+  } else {
+    handDetection.textContent = 'Not Detected';
+    handDetection.className = 'status not-detected';
+    console.log('[v0] No hands detected');
+  }
+  
+  document.getElementById('handCount').textContent = results.hand_count || 0;
+  console.log(`[v0] Hand count: ${results.hand_count || 0}`);
+  
+  document.getElementById('handConfidence').textContent = `${Math.round(results.hand_confidence)}%`;
+  console.log(`[v0] Hand confidence: ${Math.round(results.hand_confidence)}%`);
+  
+  const handPositions = results.hand_positions || [];
+  if (handPositions.length > 0) {
+    const positionText = handPositions.map((pos, index) => 
+      `Hand ${index + 1}: (${pos[0]}, ${pos[1]}, ${pos[2]}, ${pos[3]})`
+    ).join('; ');
+    document.getElementById('handPositions').textContent = positionText;
+  } else {
+    document.getElementById('handPositions').textContent = 'None';
+  }
+  console.log(`[v0] Hand positions: ${handPositions.length} detected`);
+  
+  const theftAnalysis = document.getElementById('theftAnalysis');
+  if (results.theft_detected) {
+    theftAnalysis.textContent = 'Suspicious';
+    theftAnalysis.className = 'status detected';
+    console.log('[v0] Theft detected');
+  } else {
+    theftAnalysis.textContent = 'Safe';
+    theftAnalysis.className = 'status not-detected';
+    console.log('[v0] No theft detected');
+  }
+  
+  document.getElementById('theftConfidence').textContent = `${Math.round(results.theft_confidence)}%`;
+  console.log(`[v0] Theft confidence: ${Math.round(results.theft_confidence)}%`);
+  
+  document.getElementById('explanation').textContent = results.explanation || 'No analysis yet';
+  console.log(`[v0] Explanation: ${results.explanation || 'No analysis yet'}`);
+}
 
-        function updateStreamStatus() {
-            const streamIndicator = document.getElementById('streamIndicator');
-            const yoloStream = document.getElementById('yoloStream');
-            
-            // Check if stream is loading/working
-            yoloStream.onload = function() {
-                streamIndicator.textContent = 'Stream: Active';
-                streamIndicator.className = 'status detected';
-                console.log('🎥 DEBUG: YOLO stream loaded successfully');
-            };
-            
-            yoloStream.onerror = function() {
-                streamIndicator.textContent = 'Stream: Error';
-                streamIndicator.className = 'status unknown';
-                console.log('❌ DEBUG: YOLO stream failed to load');
-            };
-        }
+function updateYOLOFeed(imageData) {
+  console.log('[v0] YOLO feed is now handled by direct MJPEG stream');
+}
 
-        function displayIncidents(incidents) {
-            const incidentsList = document.getElementById('incidentsList');
-            
-            if (incidents.length === 0) {
-                incidentsList.innerHTML = '<p>No incidents recorded yet.</p>';
-                return;
-            }
+function updateHandDetectionDisplay(handData) {
+  console.log('[v0] Updating hand detection display with:', handData);
+  
+  const handDetection = document.getElementById('handDetection');
+  if (handData.hands_detected) {
+    handDetection.textContent = 'Detected';
+    handDetection.className = 'status detected';
+  } else {
+    handDetection.textContent = 'Not Detected';
+    handDetection.className = 'status not-detected';
+  }
+  
+  document.getElementById('handCount').textContent = handData.hand_count || 0;
+  document.getElementById('handConfidence').textContent = `${Math.round(handData.hand_confidence || 0)}%`;
+  
+  const handPositions = handData.hand_positions || [];
+  if (handPositions.length > 0) {
+    const positionText = handPositions.map((pos, index) => 
+      `Hand ${index + 1}: (${pos[0]}, ${pos[1]}, ${pos[2]}, ${pos[3]})`
+    ).join('; ');
+    document.getElementById('handPositions').textContent = positionText;
+  } else {
+    document.getElementById('handPositions').textContent = 'None';
+  }
+  
+  drawDetectionBoxes(handData);
+  
+  console.log(`[v0] Updated display - Count: ${handData.hand_count}, Confidence: ${handData.hand_confidence}%, Positions: ${handPositions.length}`);
+}
 
-            let html = '';
-            incidents.forEach(incident => {
-                const confidence = Math.round(incident.confidence);
-                const timestamp = new Date(incident.timestamp).toLocaleString();
-                let confidenceClass = 'low-confidence';
-                
-                if (confidence >= 80) confidenceClass = 'high-confidence';
-                else if (confidence >= 60) confidenceClass = 'medium-confidence';
+function drawDetectionBoxes(handData) {
+  const canvas = document.getElementById('detectionOverlay');
+  const img = document.getElementById('yoloStream');
+  const ctx = canvas.getContext('2d');
+  
+  canvas.width = img.clientWidth;
+  canvas.height = img.clientHeight;
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  if (handData.hand_positions && handData.hand_positions.length > 0) {
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    ctx.font = '16px Roboto Mono';
+    ctx.fillStyle = '#00ff00';
+    
+    handData.hand_positions.forEach((bbox, index) => {
+      const [x1, y1, x2, y2] = bbox;
+      
+      const scaleX = canvas.width / 640;
+      const scaleY = canvas.height / 480;
+      
+      const scaledX1 = x1 * scaleX;
+      const scaledY1 = y1 * scaleY;
+      const scaledX2 = x2 * scaleX;
+      const scaledY2 = y2 * scaleY;
+      
+      ctx.strokeRect(scaledX1, scaledY1, scaledX2 - scaledX1, scaledY2 - scaledY1);
+      
+      const label = `Hand ${index + 1}`;
+      ctx.fillText(label, scaledX1, scaledY1 - 5);
+    });
+  }
+}
 
-                html += `
-                    <div class="incident-item ${confidenceClass}">
-                        <h4>🚨 Security Alert - ${confidence}% Confidence</h4>
-                        <p><strong>Time:</strong> ${timestamp}</p>
-                        <p><strong>Explanation:</strong> ${incident.explanation || 'No details available'}</p>
-                        <p><strong>Status:</strong> ${incident.resolved ? 'Resolved' : 'Active'}</p>
-                    </div>
-                `;
-            });
+function updateStreamStatus() {
+  const streamIndicator = document.getElementById('streamIndicator');
+  const yoloStream = document.getElementById('yoloStream');
+  
+  yoloStream.onload = function() {
+    streamIndicator.textContent = 'Stream: Active';
+    streamIndicator.className = 'status detected';
+    console.log('[v0] YOLO stream loaded successfully');
+  };
+  
+  yoloStream.onerror = function() {
+    streamIndicator.textContent = 'Stream: Error';
+    streamIndicator.className = 'status unknown';
+    console.log('[v0] YOLO stream failed to load');
+  };
+}
 
-            incidentsList.innerHTML = html;
-        }
+function displayIncidents(incidents) {
+  const incidentsList = document.getElementById('incidentsList');
+  
+  if (incidents.length === 0) {
+    incidentsList.innerHTML = '<p>No incidents recorded yet.</p>';
+    return;
+  }
 
-        // Auto-refresh data every 5 seconds
-        setInterval(refreshData, 2000);
+  let html = '';
+  incidents.forEach(incident => {
+    const confidence = Math.round(incident.confidence);
+    const timestamp = new Date(incident.timestamp).toLocaleString();
+    let confidenceClass = 'low-confidence';
+    
+    if (confidence >= 80) confidenceClass = 'high-confidence';
+    else if (confidence >= 60) confidenceClass = 'medium-confidence';
 
-        // Initial load
-        refreshData();
-        updateStreamStatus();
-    </script>
-</body>
-</html>
+    html += `
+      <div class="incident-item ${confidenceClass}">
+        <h4>🚨 Security Alert - ${confidence}% Confidence</h4>
+        <p><strong>Time:</strong> ${timestamp}</p>
+        <p><strong>Explanation:</strong> ${incident.explanation || 'No details available'}</p>
+        <p><strong>Status:</strong> ${incident.resolved ? 'Resolved' : 'Active'}</p>
+      </div>
+    `;
+  });
+
+  incidentsList.innerHTML = html;
+}
+
+setInterval(refreshData, 2000);
+
+refreshData();
+updateStreamStatus();
+</script>
+{% endblock %}
