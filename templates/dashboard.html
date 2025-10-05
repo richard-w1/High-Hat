@@ -193,8 +193,9 @@
 
         <div class="video-container">
             <h3>🎯 Live YOLO Detection Stream</h3>
-            <div id="yoloFeed" style="text-align: center;">
+            <div id="yoloFeed" style="text-align: center; position: relative;">
                 <img id="yoloStream" src="/yolo_stream" alt="YOLO Detection Feed" style="max-width: 100%; height: auto; border: 2px solid #007bff; border-radius: 8px;">
+                <canvas id="detectionOverlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 8px;"></canvas>
                 <div id="streamStatus" style="margin-top: 10px;">
                     <span id="streamIndicator" class="status not-detected">Stream: Loading...</span>
                 </div>
@@ -214,8 +215,16 @@
                         <span id="handDetection" class="status">Unknown</span>
                     </div>
                     <div class="result-item">
+                        <span class="label">Hand Count:</span>
+                        <span id="handCount">0</span>
+                    </div>
+                    <div class="result-item">
                         <span class="label">Hand Confidence:</span>
                         <span id="handConfidence">0%</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="label">Hand Positions:</span>
+                        <span id="handPositions">None</span>
                     </div>
                     <div class="result-item">
                         <span class="label">Theft Analysis:</span>
@@ -399,6 +408,13 @@
                     console.log('📊 DEBUG: Latest results:', resultsData);
                     updateRealtimeResults(resultsData.results);
                     
+                    // Get detailed hand detection data
+                    console.log('🖐️ DEBUG: Fetching detailed hand detection data...');
+                    const handResponse = await fetch('/api/hand_detection_data');
+                    const handData = await handResponse.json();
+                    console.log('🖐️ DEBUG: Hand detection data:', handData);
+                    updateHandDetectionDisplay(handData);
+                    
                     // Get YOLO visualized image
                     console.log('🎯 DEBUG: Fetching YOLO visualized image...');
                     const imageResponse = await fetch('/api/visualized_image');
@@ -449,9 +465,25 @@
                 console.log('👀 DEBUG: No hands detected');
             }
             
+            // Update hand count
+            document.getElementById('handCount').textContent = results.hand_count || 0;
+            console.log(`🖐️ DEBUG: Hand count: ${results.hand_count || 0}`);
+            
             // Update hand confidence
             document.getElementById('handConfidence').textContent = `${Math.round(results.hand_confidence)}%`;
             console.log(`📊 DEBUG: Hand confidence: ${Math.round(results.hand_confidence)}%`);
+            
+            // Update hand positions
+            const handPositions = results.hand_positions || [];
+            if (handPositions.length > 0) {
+                const positionText = handPositions.map((pos, index) => 
+                    `Hand ${index + 1}: (${pos[0]}, ${pos[1]}, ${pos[2]}, ${pos[3]})`
+                ).join('; ');
+                document.getElementById('handPositions').textContent = positionText;
+            } else {
+                document.getElementById('handPositions').textContent = 'None';
+            }
+            console.log(`📍 DEBUG: Hand positions: ${handPositions.length} detected`);
             
             // Update theft analysis
             const theftAnalysis = document.getElementById('theftAnalysis');
@@ -477,6 +509,83 @@
         function updateYOLOFeed(imageData) {
             // This function is now handled by the direct MJPEG stream
             console.log('🎯 DEBUG: YOLO feed is now handled by direct MJPEG stream');
+        }
+
+        function updateHandDetectionDisplay(handData) {
+            console.log('🖐️ DEBUG: Updating hand detection display with:', handData);
+            
+            // Update hand detection status
+            const handDetection = document.getElementById('handDetection');
+            if (handData.hands_detected) {
+                handDetection.textContent = 'Detected';
+                handDetection.className = 'status detected';
+            } else {
+                handDetection.textContent = 'Not Detected';
+                handDetection.className = 'status not-detected';
+            }
+            
+            // Update hand count
+            document.getElementById('handCount').textContent = handData.hand_count || 0;
+            
+            // Update hand confidence
+            document.getElementById('handConfidence').textContent = `${Math.round(handData.hand_confidence || 0)}%`;
+            
+            // Update hand positions
+            const handPositions = handData.hand_positions || [];
+            if (handPositions.length > 0) {
+                const positionText = handPositions.map((pos, index) => 
+                    `Hand ${index + 1}: (${pos[0]}, ${pos[1]}, ${pos[2]}, ${pos[3]})`
+                ).join('; ');
+                document.getElementById('handPositions').textContent = positionText;
+            } else {
+                document.getElementById('handPositions').textContent = 'None';
+            }
+            
+            // Draw detection boxes on video overlay
+            drawDetectionBoxes(handData);
+            
+            console.log(`🖐️ DEBUG: Updated display - Count: ${handData.hand_count}, Confidence: ${handData.hand_confidence}%, Positions: ${handPositions.length}`);
+        }
+
+        function drawDetectionBoxes(handData) {
+            const canvas = document.getElementById('detectionOverlay');
+            const img = document.getElementById('yoloStream');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match image
+            canvas.width = img.clientWidth;
+            canvas.height = img.clientHeight;
+            
+            // Clear previous drawings
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw hand detection boxes
+            if (handData.hand_positions && handData.hand_positions.length > 0) {
+                ctx.strokeStyle = '#00ff00'; // Green for hands
+                ctx.lineWidth = 3;
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#00ff00';
+                
+                handData.hand_positions.forEach((bbox, index) => {
+                    const [x1, y1, x2, y2] = bbox;
+                    
+                    // Scale coordinates to canvas size (assuming original detection was on full image)
+                    const scaleX = canvas.width / 640; // Adjust based on your camera resolution
+                    const scaleY = canvas.height / 480; // Adjust based on your camera resolution
+                    
+                    const scaledX1 = x1 * scaleX;
+                    const scaledY1 = y1 * scaleY;
+                    const scaledX2 = x2 * scaleX;
+                    const scaledY2 = y2 * scaleY;
+                    
+                    // Draw bounding box
+                    ctx.strokeRect(scaledX1, scaledY1, scaledX2 - scaledX1, scaledY2 - scaledY1);
+                    
+                    // Draw label
+                    const label = `Hand ${index + 1}`;
+                    ctx.fillText(label, scaledX1, scaledY1 - 5);
+                });
+            }
         }
 
         function updateStreamStatus() {

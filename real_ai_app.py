@@ -76,11 +76,14 @@ PI_CAMERA_URL = "http://100.101.51.31:5000/video_feed"
 latest_results = {
     'photo_count': 0,
     'hands_detected': False,
+    'hand_count': 0,
     'hand_confidence': 0.0,
+    'hand_positions': [],  # List of hand bounding boxes
     'theft_detected': False,
     'theft_confidence': 0.0,
     'explanation': '',
-    'timestamp': None
+    'timestamp': None,
+    'detailed_hands': []  # Detailed hand information
 }
 
 # PROPER VIDEO PROCESSING ARCHITECTURE
@@ -204,17 +207,20 @@ def yolo_processing_worker():
 # YOLO stream processing
 yolo_stream_active = False
 
-def update_dashboard_results(photo_count, hands_detected, hand_confidence, theft_detected, theft_confidence, explanation):
+def update_dashboard_results(photo_count, detection_data, theft_detected, theft_confidence, explanation):
     """Update the latest results for dashboard display"""
     global latest_results
     latest_results = {
         'photo_count': photo_count,
-        'hands_detected': hands_detected,
-        'hand_confidence': hand_confidence,
+        'hands_detected': detection_data['hands_detected'],
+        'hand_count': detection_data['hand_count'],
+        'hand_confidence': detection_data['max_confidence'] * 100,  # Convert to percentage
+        'hand_positions': [hand['bbox'] for hand in detection_data['hands']],
+        'detailed_hands': detection_data['hands'],
         'theft_detected': theft_detected,
         'theft_confidence': theft_confidence,
         'explanation': explanation,
-        'timestamp': time.time()
+        'timestamp': detection_data['timestamp']
     }
 
 def real_monitoring_loop():
@@ -229,8 +235,8 @@ def real_monitoring_loop():
             print(f"🎥 FRAME #{frame_count}: Processing MJPEG stream from Pi camera...")
             print(f"🔍 DEBUG: Attempting to connect to {PI_CAMERA_URL}")
             
-            # Get frame from Pi camera and run YOLO detection
-            hands_detected, image_with_detections = hand_detector.detect_hands_from_camera(PI_CAMERA_URL)
+            # Get frame from Pi camera and run hand detection
+            detection_data, image_with_detections = hand_detector.detect_hands_from_camera(PI_CAMERA_URL)
             
             # Always store the latest visualized image for dashboard (with or without detections)
             global latest_visualized_image
@@ -246,15 +252,15 @@ def real_monitoring_loop():
                     latest_visualized_image = None
             
             # Update dashboard with current frame results
-            if hands_detected:
-                print(f"🖐️ FRAME #{frame_count}: HANDS DETECTED! Confidence: {hands_detected}")
-                update_dashboard_results(frame_count, True, 85.0, False, 0.0, "Hands detected in frame")
+            if detection_data['hands_detected']:
+                print(f"🖐️ FRAME #{frame_count}: HANDS DETECTED! Count: {detection_data['hand_count']}, Max Confidence: {detection_data['max_confidence']:.2f}")
+                update_dashboard_results(frame_count, detection_data, False, 0.0, f"{detection_data['hand_count']} hands detected in frame")
             else:
                 print(f"👀 FRAME #{frame_count}: No hands detected")
-                update_dashboard_results(frame_count, False, 0.0, False, 0.0, "No hands detected")
+                update_dashboard_results(frame_count, detection_data, False, 0.0, "No hands detected")
             
             # Only do deep analysis (Gemini) when hands are detected for multiple consecutive frames
-            if hands_detected:
+            if detection_data['hands_detected']:
                 print(f"🖐️ FRAME #{frame_count}: HANDS DETECTED! Capturing suspicious images...")
                 
                 # Capture multiple images for analysis
@@ -271,7 +277,7 @@ def real_monitoring_loop():
                     print(f"💭 FRAME #{frame_count}: Explanation: {explanation}")
                     
                     # Update dashboard with real-time results
-                    update_dashboard_results(frame_count, hands_detected, 85.0, is_theft, confidence, explanation)
+                    update_dashboard_results(frame_count, detection_data, is_theft, confidence, explanation)
                     
                     if is_theft and confidence > 60:  # Threshold for alert
                         print(f"🚨 FRAME #{frame_count}: THEFT DETECTED! Confidence: {confidence}%")
@@ -375,6 +381,21 @@ def get_latest_results():
     return jsonify({
         'results': latest_results
     })
+
+@app.route('/api/hand_detection_data', methods=['GET'])
+def get_hand_detection_data():
+    """Get detailed hand detection data for frontend"""
+    global latest_results
+    hand_data = {
+        'hands_detected': latest_results.get('hands_detected', False),
+        'hand_count': latest_results.get('hand_count', 0),
+        'hand_confidence': latest_results.get('hand_confidence', 0.0),
+        'hand_positions': latest_results.get('hand_positions', []),
+        'detailed_hands': latest_results.get('detailed_hands', []),
+        'timestamp': latest_results.get('timestamp', None),
+        'photo_count': latest_results.get('photo_count', 0)
+    }
+    return jsonify(hand_data)
 
 @app.route('/api/visualized_image', methods=['GET'])
 def get_visualized_image():

@@ -28,14 +28,14 @@ class HandDetector:
     def detect_hands_from_camera(self, camera_url):
         """
         Detect hands from Pi camera feed
-        Returns: (hands_detected, image_with_detections)
+        Returns: (detailed_detection_data, image_with_detections)
         """
         try:
             # Get image from Pi camera
             response = requests.get(camera_url, timeout=5)
             if response.status_code != 200:
                 print(f"❌ Camera request failed: {response.status_code}")
-                return False, None
+                return self._empty_detection_result(), None
             
             # Convert to OpenCV format
             image_array = np.frombuffer(response.content, dtype=np.uint8)
@@ -43,23 +43,42 @@ class HandDetector:
             
             if image is None:
                 print("❌ Failed to decode camera image")
-                return False, None
+                return self._empty_detection_result(), None
             
             # Detect hands
             has_hand, confidence, hands = self.detect_hands(image)
             
+            # Create detailed detection data
+            detection_data = {
+                'hands_detected': has_hand,
+                'hand_count': len(hands) if hands else 0,
+                'max_confidence': confidence,
+                'hands': hands,  # List of hand details
+                'timestamp': time.time()
+            }
+            
             # Draw detections
             if has_hand:
                 image = self.draw_detections(image, hands)
-                print(f"🖐️ Detected {len(hands)} hands with confidence {confidence:.2f}")
-                return True, image
+                print(f"🖐️ Detected {len(hands)} hands with max confidence {confidence:.2f}")
             else:
                 print("👀 No hands detected")
-                return False, image
+                
+            return detection_data, image
                 
         except Exception as e:
             print(f"❌ Error in camera hand detection: {e}")
-            return False, None
+            return self._empty_detection_result(), None
+
+    def _empty_detection_result(self):
+        """Return empty detection result structure"""
+        return {
+            'hands_detected': False,
+            'hand_count': 0,
+            'max_confidence': 0.0,
+            'hands': [],
+            'timestamp': time.time()
+        }
 
     def detect_hands(self, frame):
         """

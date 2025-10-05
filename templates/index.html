@@ -1,0 +1,208 @@
+{% extends 'layout.html' %}
+
+{% block title %}Dashboard - Anti-Theft Monitor{% endblock %}
+
+{% block content %}
+  <div class="dashboard-grid">
+    <section class="main-col">
+      <!-- Current Session Overview -->
+      <div class="card">
+        {% if current_session %}
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+            <h2 class="session-title mb-0">Current Session</h2>
+            <div class="status-badge status-active">Active</div>
+          </div>
+          
+          <div class="meta-badge mb-2">Session ID: S-{{ current_session.id }}</div>
+
+          <div class="session-card">
+            <div class="session-main">
+              <h4 class="section-header">Session Description</h4>
+              <div style="flex: 1; display: flex; align-items: center;">
+                <p class="session-desc" style="margin: 0; font-size: 1.1rem; line-height: 1.6;">
+                  {{ current_session.description or 'Monitoring backpack for potential theft sessions and unauthorized access. This session tracks real-time activity and captures images when suspicious behavior is detected.' }}
+                </p>
+              </div>
+            </div>
+
+            <aside class="session-viewer">
+              <h4 class="section-header">Live Feed</h4>
+              {% set imgs = current_session.images if current_session else [] %}
+              <div class="images">
+                {% if imgs and imgs[0] %}
+                  <img id="main-preview" src="/static/{{ imgs[0] }}" alt="Current session capture" />
+                {% else %}
+                  <div id="main-preview" style="width: 100%; height: 200px; background: var(--background-accent); border-radius: var(--border-radius); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-weight: 500;">
+                    <div style="text-align: center;">
+                      <div style="font-size: 3rem; margin-bottom: 0.5rem;">📷</div>
+                      <div>No Images Available</div>
+                    </div>
+                  </div>
+                {% endif %}
+                
+                {% if imgs|length > 1 %}
+                  <div class="thumbs">
+                    {% for p in imgs[:6] %}
+                      <img class="thumb" src="/static/{{ p }}" data-src="/static/{{ p }}" alt="Thumbnail {{ loop.index }}" />
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </aside>
+          </div>
+
+          <div class="meta-line">
+            <span><strong>Started:</strong> {{ current_session.started_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+            <span class="text-muted">Session Duration: Active</span>
+          </div>
+
+        {% else %}
+          <div style="text-align: center; padding: 3rem 1rem;">
+            <div style="font-size: 4rem; margin-bottom: 1rem; color: var(--text-muted);">🔒</div>
+            <h2 class="session-title">No Active Session</h2>
+            <p class="session-desc">Your backpack monitoring system is currently inactive. Start a new session to begin monitoring.</p>
+            <button class="btn btn-primary" style="margin-top: 1rem;">Start New Session</button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Recent Activity Section -->
+      <div class="session-bottom-row">
+        <div class="card recent-sessions-aligned">
+          <h4 class="section-header">Recent Sessions</h4>
+          {% if sessions %}
+            <div class="sessions-list">
+              {% for s in sessions[:3] %}
+                <div class="session-item">
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                      <div style="font-weight: 600; color: var(--primary-color);">Session S-{{ s.id }}</div>
+                      <div style="color: var(--text-secondary); font-size: 0.9rem;">{{ s.started_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                      <a class="btn btn-primary small view-btn-hover" href="{{ url_for('session_detail', session_id=s.id) }}">View</a>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            <div style="text-align: center; margin-top: 1rem;">
+              <a class="btn btn-primary" href="{{ url_for('sessions_all') }}">View All Sessions</a>
+            </div>
+          {% else %}
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              <div style="font-size: 2rem; margin-bottom: 1rem;">📋</div>
+              <p>No previous sessions found</p>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="card confidence-aligned">
+          <h4 class="section-header">Detection Confidence</h4>
+          <div id="donut" data-labels='{{ chart_labels|tojson }}' data-data='{{ chart_data|tojson }}' style="display: flex; justify-content: center; min-height: 200px; align-items: center; position: relative;">
+            <span style="position: absolute; font-size: 1.8rem; font-weight: 600; color: #000000; text-shadow: 0 1px 3px rgba(255, 255, 255, 0.3); z-index: 4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">75%</span>
+            <div class="end-cap" style="position: absolute; top: 50%; left: 50%; width: 15px; height: 15px; background: #ff2d92; border-radius: 50%; transform: translate(-50%, -50%) translate(62px, 0px); box-shadow: 0 0 4px rgba(255, 45, 146, 0.5); z-index: 3;"></div>
+          </div>
+          <div style="margin-top: 1rem; text-align: center;">
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Based on recent detection patterns</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side-col">
+      <!-- Aligned sidebar container -->
+      <div class="sidebar-aligned-container">
+        <!-- Quick Stats Card -->
+        <div class="card compact sidebar-aligned">
+          <h4 class="section-header">System Overview</h4>
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: var(--text-secondary);">Total Sessions</span>
+              <span style="font-weight: 600; color: var(--primary-color);">{{ sessions|length }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: var(--text-secondary);">Active Monitoring</span>
+              <span class="status-badge {{ 'status-active' if current_session else 'status-incident' }}">
+                {{ 'ON' if current_session else 'OFF' }}
+              </span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: var(--text-secondary);">Last Activity</span>
+              <span style="font-weight: 500; color: var(--text-secondary); font-size: 0.9rem;">
+                {% if sessions %}
+                  {{ sessions[0].started_at.strftime('%m/%d %H:%M') }}
+                {% else %}
+                  None
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+
+      <!-- Recent Sessions -->
+      {% if current_session and current_session.incidents %}
+      <div class="card compact">
+        <h4 class="section-header">Recent Sessions</h4>
+        <div class="inc-list">
+          {% for inc in current_session.incidents[-3:] %}
+            <div class="inc-row" style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+              <div>
+                <div style="font-weight: 500; color: var(--accent-color);">{{ inc.description[:30] }}{% if inc.description|length > 30 %}...{% endif %}</div>
+                <div style="color: var(--text-muted); font-size: 0.8rem;">{{ inc.created_at.strftime('%H:%M:%S') }}</div>
+              </div>
+              <div class="status-badge status-incident">Alert</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+        <!-- Session Statistics -->
+        {% if current_session %}
+        <div class="card compact sidebar-aligned">
+          <h4 class="section-header">Session Statistics</h4>
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: var(--text-secondary);">Total Sessions</span>
+              <span style="font-size: 1.5rem; font-weight: 700; color: var(--secondary-color);">{{ current_session.incidents|length }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: var(--text-secondary);">Images Captured</span>
+              <span style="font-size: 1.5rem; font-weight: 700; color: var(--success-color);">{{ current_session.images|length }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: var(--text-secondary);">Session Status</span>
+              <span class="status-badge status-active">Active</span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </aside>
+  </div>
+{% endblock %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    // Image gallery functionality
+    document.querySelectorAll('.thumb').forEach(function(img){
+      img.addEventListener('click', function(){
+        var src = this.dataset.src;
+        var main = document.getElementById('main-preview');
+        if(main && src){
+          if(main.tagName.toLowerCase() === 'img') {
+            main.src = src;
+          } else {
+            // Replace placeholder div with img
+            var newImg = document.createElement('img');
+            newImg.id = 'main-preview';
+            newImg.src = src;
+            newImg.alt = 'Selected session capture';
+            main.replaceWith(newImg);
+          }
+        }
+      });
+    });
+  });
+</script>

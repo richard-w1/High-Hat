@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Anti-Theft Dashboard{% endblock %}</title>
+    <meta name="description" content="Professional backpack anti-theft monitoring system">
+    <link rel="stylesheet" href="/static/styles.css?v=20251004">
+    <script src="/static/dashboard.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div class="container">
+        <h1>{% block header_title %}Backpack Anti-Theft Monitor{% endblock %}</h1>
+        <nav>
+          <a href="/" class="nav-link">Dashboard</a>
+          <a href="/sessions" class="nav-link">All Sessions</a>
+          <a href="/sessions" class="nav-link">Sessions</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="container">
+      <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for category, message in messages %}
+                <li class="flash {{ category }}">{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+
+    <footer style="margin-top: 3rem; padding: 2rem 0; text-align: center; color: var(--text-muted); border-top: 1px solid var(--border-color);">
+      <div class="container">
+        <p>&copy; 2025 Anti-Theft Monitoring System. Developed by Muhammad Bilal.</p>
+      </div>
+    </footer>
+  </body>
+</html>
