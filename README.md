@@ -1,5 +1,11 @@
 # High-Hat - HackUTA 2025
 
+
+https://www.youtube.com/watch?v=kCthLFBD2vs
+
+<img width="768" height="385" alt="image" src="https://github.com/user-attachments/assets/d34c4f7e-c252-4867-8ab7-f670f7df7247" />
+
+
 **High-Hat** is a security monitoring system designed to detect and prevent personal backpack/pickpocket theft using computer vision, generative AI, and voice alerts.
 
 ## Features
@@ -123,4 +129,5 @@
 
 7. **Access the dashboard**
    
+
    Open your browser to `http://localhost:5000` or `http://YOUR_SERVER_IP:5000`
