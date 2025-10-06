@@ -1,3 +1,7 @@
+"""
+Run this on the Raspberry Pi to stream the camera feed.
+"""
+
 from flask import Flask, Response
 from picamera2 import Picamera2
 import io
