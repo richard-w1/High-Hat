@@ -1,6 +1,20 @@
-# High-Hat - HackUTA 2025
+# High-Hat - HackUTA 2025 
 
-**High-Hat** is a security monitoring system designed to detect and prevent personal backpack/pickpocket theft using computer vision, generative AI, and voice alerts.
+https://devpost.com/software/high-hat
+
+A Raspberry Pi powered, AI-driven wearable camera system that detects suspicious hand movements or theft attempts behind a person in real time. It uses computer vision, gesture analysis, and Google Gemini-powered threat interpretation to decide if an action is potentially harmful and immediately alerts the wearer through audio warnings using Eleven Labs audio synthesis.
+[![Link to Youtube](https://private-user-images.githubusercontent.com/101631956/497937985-f21e7fa2-4aa3-46c2-a246-f0a5ac1ebee2.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTk3NzM5MzksIm5iZiI6MTc1OTc3MzYzOSwicGF0aCI6Ii8xMDE2MzE5NTYvNDk3OTM3OTg1LWYyMWU3ZmEyLTRhYTMtNDZjMi1hMjQ2LWYwYTVhYzFlYmVlMi5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUxMDA2JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MTAwNlQxODAwMzlaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT02MDQ2NDVhOGJkYjY4MzM1OGM5MjhmNzU3ZjUxNWY1MjViOGRhZmQxYjA0YzFkMTFlYzk4ZjNkNTRjMzNiOTFkJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.3quKm04nMGPfwzvYN0dndKATn7oHzLg0V8caDTmGdzs)](https://www.youtube.com/watch?v=kCthLFBD2vs "High_Hat")
+
+<div style="display: flex; gap: 10px;">
+  <img width="400" height="268" alt="image" src="https://github.com/user-attachments/assets/fcb899cc-ba18-497e-871e-62f3fa6aef74" />
+  <img width="400" height="342" alt="image" src="https://github.com/user-attachments/assets/1b011e17-e3e7-4c16-8e8f-cea3b01109e1" />
+</div>
+
+<div style="display: flex; gap: 10px;">
+  <img width="400" height="275" alt="image" src="https://github.com/user-attachments/assets/6125309c-ff62-4109-afad-523700fd4b63" />
+  <img width="400" height="239" alt="image" src="https://github.com/user-attachments/assets/ea75e45b-2aaf-4ee1-9de1-651723c1fe6b" />
+</div>
+
 
 ## Features
 
@@ -123,4 +137,10 @@
 
 7. **Access the dashboard**
    
+
    Open your browser to `http://localhost:5000` or `http://YOUR_SERVER_IP:5000`
+
+
+
+
+
