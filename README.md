@@ -3,7 +3,7 @@
 https://devpost.com/software/high-hat
 
 A Raspberry Pi powered, AI-driven wearable camera system that detects suspicious hand movements or theft attempts behind a person in real time. It uses computer vision, gesture analysis, and Google Gemini-powered threat interpretation to decide if an action is potentially harmful and immediately alerts the wearer through audio warnings using Eleven Labs audio synthesis.
-[![Link to Youtube](https://github.com/user-attachments/assets/f21e7fa2-4aa3-46c2-a246-f0a5ac1ebee2)](https://www.youtube.com/watch?v=kCthLFBD2vs "High_Hat")
+[![Link to Youtube](https://github.com/user-attachments/assets/f21e7fa2-4aa3-46c2-a246-f0a5ac1ebee2)](https://www.youtube.com/watch?v=CCDfH9ludtM "High_Hat")
 
 <div style="display: flex; gap: 10px;">
   <img width="400" height="268" alt="image" src="https://github.com/user-attachments/assets/fcb899cc-ba18-497e-871e-62f3fa6aef74" />
@@ -139,6 +139,7 @@ A Raspberry Pi powered, AI-driven wearable camera system that detects suspicious
    
 
    Open your browser to `http://localhost:5000` or `http://YOUR_SERVER_IP:5000`
+
 
 
 
